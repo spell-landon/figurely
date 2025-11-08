@@ -4,7 +4,7 @@ import { Save, Building2, FileText, Mail } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
+import { FieldLabel } from "~/components/ui/field-label";
 import { Textarea } from "~/components/ui/textarea";
 import { requireAuth } from "~/lib/auth.server";
 
@@ -127,7 +127,7 @@ export default function Settings() {
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="businessName">Business Name</Label>
+              <FieldLabel htmlFor="businessName" label="Business Name" required />
               <Input
                 id="businessName"
                 name="businessName"
@@ -137,7 +137,7 @@ export default function Settings() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="businessEmail">Business Email</Label>
+              <FieldLabel htmlFor="businessEmail" label="Business Email" required />
               <Input
                 id="businessEmail"
                 name="businessEmail"
@@ -148,7 +148,7 @@ export default function Settings() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="businessPhone">Business Phone</Label>
+              <FieldLabel htmlFor="businessPhone" label="Business Phone" required />
               <Input
                 id="businessPhone"
                 name="businessPhone"
@@ -159,7 +159,7 @@ export default function Settings() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="businessWebsite">Website</Label>
+              <FieldLabel htmlFor="businessWebsite" label="Website" required />
               <Input
                 id="businessWebsite"
                 name="businessWebsite"
@@ -170,7 +170,7 @@ export default function Settings() {
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="businessAddress">Business Address</Label>
+              <FieldLabel htmlFor="businessAddress" label="Business Address" required />
               <Input
                 id="businessAddress"
                 name="businessAddress"
@@ -180,7 +180,7 @@ export default function Settings() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="businessNumber">Business Number</Label>
+              <FieldLabel htmlFor="businessNumber" label="Business Number" required />
               <Input
                 id="businessNumber"
                 name="businessNumber"
@@ -190,7 +190,7 @@ export default function Settings() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="businessOwner">Owner Name</Label>
+              <FieldLabel htmlFor="businessOwner" label="Owner Name" required />
               <Input
                 id="businessOwner"
                 name="businessOwner"
@@ -214,7 +214,7 @@ export default function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="defaultInvoiceNote">Default Invoice Note</Label>
+              <FieldLabel htmlFor="defaultInvoiceNote" label="Default Invoice Note" required />
               <Textarea
                 id="defaultInvoiceNote"
                 name="defaultInvoiceNote"
@@ -242,7 +242,7 @@ export default function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="defaultEmailSubject">Default Email Subject</Label>
+              <FieldLabel htmlFor="defaultEmailSubject" label="Default Email Subject" required />
               <Input
                 id="defaultEmailSubject"
                 name="defaultEmailSubject"
@@ -255,7 +255,7 @@ export default function Settings() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="defaultEmailMessage">Default Email Message</Label>
+              <FieldLabel htmlFor="defaultEmailMessage" label="Default Email Message" required />
               <Textarea
                 id="defaultEmailMessage"
                 name="defaultEmailMessage"
@@ -269,7 +269,7 @@ export default function Settings() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="emailSignature">Email Signature</Label>
+              <FieldLabel htmlFor="emailSignature" label="Email Signature" required />
               <Textarea
                 id="emailSignature"
                 name="emailSignature"

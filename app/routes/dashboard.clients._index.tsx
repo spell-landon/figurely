@@ -4,21 +4,27 @@ import {
   type MetaFunction,
 } from '@remix-run/node';
 import { Link, useLoaderData, useSearchParams } from '@remix-run/react';
-import { Plus, Eye, Trash2, Download } from 'lucide-react';
+import { Plus, Eye, Edit, Mail, Phone, MapPin } from 'lucide-react';
 import { Button } from '~/components/ui/button';
-import { Card, CardContent } from '~/components/ui/card';
+import {
+  Card,
+  CardContent,
+} from '~/components/ui/card';
 import { Badge } from '~/components/ui/badge';
 import { requireAuth } from '~/lib/auth.server';
-import { formatCurrency } from '~/lib/utils';
 import { Pagination } from '~/components/pagination';
 import { SearchInput } from '~/components/search-input';
-import { parsePaginationParams, getSupabaseRange } from '~/lib/pagination';
+import {
+  parsePaginationParams,
+  getSupabaseRange,
+  DEFAULT_PAGE_SIZE,
+} from '~/lib/pagination';
 import { parseSearchParams, buildSupabaseSearchQuery } from '~/lib/search';
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Expenses - Ledgerly' },
-    { name: 'description', content: 'Manage your expenses' },
+    { title: 'Clients - Ledgerly' },
+    { name: 'description', content: 'Manage your clients' },
   ];
 };
 
@@ -36,34 +42,36 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const { query } = parseSearchParams(searchParams);
 
   // Build base query
-  let expensesQuery = supabase
-    .from('expenses')
+  let clientsQuery = supabase
+    .from('clients')
     .select('*', { count: 'exact' })
     .eq('user_id', session.user.id)
-    .order('date', { ascending: false });
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
 
   // Apply search if provided
   if (query) {
     const searchQuery = buildSupabaseSearchQuery(query, [
-      'description',
-      'merchant',
-      'category',
+      'name',
+      'email',
+      'phone',
+      'contact_person',
     ]);
-    expensesQuery = expensesQuery.or(searchQuery);
+    clientsQuery = clientsQuery.or(searchQuery);
   }
 
   // Apply pagination
-  expensesQuery = expensesQuery.range(from, to);
+  clientsQuery = clientsQuery.range(from, to);
 
-  const { data: expenses, error, count } = await expensesQuery;
+  const { data: clients, error, count } = await clientsQuery;
 
   if (error) {
-    throw new Error('Failed to load expenses');
+    throw new Error('Failed to load clients');
   }
 
   return json(
     {
-      expenses: expenses || [],
+      clients: clients || [],
       totalCount: count || 0,
       currentPage: page,
       itemsPerPage: limit,
@@ -72,31 +80,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   );
 }
 
-function getCategoryBadge(category: string) {
-  const colors: Record<string, string> = {
-    travel: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-    meals:
-      'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
-    office:
-      'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
-    equipment:
-      'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    software: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300',
-    other: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
-  };
-
-  const color = colors[category?.toLowerCase()] || colors.other;
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${color}`}>
-      {category || 'Other'}
-    </span>
-  );
-}
-
-export default function ExpensesIndex() {
-  const { expenses, totalCount, currentPage, itemsPerPage } =
+export default function ClientsIndex() {
+  const { clients, totalCount, currentPage, itemsPerPage } =
     useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
 
@@ -105,15 +90,15 @@ export default function ExpensesIndex() {
       {/* Header */}
       <div className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4'>
         <div>
-          <h1 className='text-xl font-bold md:text-3xl'>Expenses</h1>
+          <h1 className='text-xl font-bold md:text-3xl'>Clients</h1>
           <p className='text-xs text-muted-foreground md:text-base'>
-            Track and manage your business expenses
+            Manage your client information
           </p>
         </div>
-        <Link to='/dashboard/expenses/new'>
+        <Link to='/dashboard/clients/new'>
           <Button>
             <Plus className='mr-2 h-4 w-4' />
-            New Expense
+            New Client
           </Button>
         </Link>
       </div>
@@ -122,32 +107,32 @@ export default function ExpensesIndex() {
       <Card>
         <CardContent className='p-4 md:pt-6'>
           <SearchInput
-            placeholder='Search expenses by description, merchant, category...'
+            placeholder='Search clients by name, email, phone...'
             preserveParams={['limit']}
           />
         </CardContent>
       </Card>
 
-      {/* Expenses List */}
-      {expenses.length === 0 ? (
+      {/* Clients List */}
+      {clients.length === 0 ? (
         <Card>
           <CardContent className='flex flex-col items-center justify-center py-12'>
             <div className='flex h-20 w-20 items-center justify-center rounded-full bg-muted'>
               <Plus className='h-10 w-10 text-muted-foreground' />
             </div>
             <h3 className='mt-4 text-lg font-semibold'>
-              {searchParams.get('q') ? 'No expenses found' : 'No expenses yet'}
+              {searchParams.get('q') ? 'No clients found' : 'No clients yet'}
             </h3>
             <p className='mt-2 text-center text-sm text-muted-foreground'>
               {searchParams.get('q')
                 ? 'Try adjusting your search'
-                : 'Get started by tracking your first expense'}
+                : 'Get started by adding your first client'}
             </p>
             {!searchParams.get('q') && (
-              <Link to='/dashboard/expenses/new'>
+              <Link to='/dashboard/clients/new'>
                 <Button className='mt-4'>
                   <Plus className='mr-2 h-4 w-4' />
-                  Add Expense
+                  Add Client
                 </Button>
               </Link>
             )}
@@ -157,37 +142,47 @@ export default function ExpensesIndex() {
         <>
           {/* Mobile Card View */}
           <div className='flex flex-col gap-3 md:hidden'>
-            {expenses.map((expense) => (
+            {clients.map((client) => (
               <Link
-                key={expense.id}
-                to={`/dashboard/expenses/${expense.id}`}
+                key={client.id}
+                to={`/dashboard/clients/${client.id}`}
                 className='block'>
                 <Card className='transition-shadow hover:shadow-md'>
                   <CardContent className='p-4'>
-                    <div className='mb-3'>
-                      <p className='text-base font-semibold text-primary'>
-                        {expense.description}
-                      </p>
-                      <p className='text-xs text-muted-foreground'>
-                        {expense.merchant}
-                      </p>
-                    </div>
-                    <div className='mb-3'>
-                      {getCategoryBadge(expense.category)}
-                    </div>
-                    <div className='grid grid-cols-2 gap-2'>
-                      <div>
-                        <p className='text-xs text-muted-foreground'>Amount</p>
-                        <p className='text-base font-bold'>
-                          ${formatCurrency(expense.total)}
+                    <div className='mb-3 flex items-start justify-between'>
+                      <div className='min-w-0 flex-1'>
+                        <p className='truncate text-base font-semibold text-primary'>
+                          {client.name}
                         </p>
+                        {client.contact_person && (
+                          <p className='truncate text-xs text-muted-foreground'>
+                            {client.contact_person}
+                          </p>
+                        )}
                       </div>
-                      <div className='text-right'>
-                        <p className='text-xs text-muted-foreground'>Date</p>
-                        <p className='text-sm'>
-                          {new Date(expense.date).toLocaleDateString()}
-                        </p>
-                      </div>
+                      <Badge variant='default' className='ml-2'>
+                        Active
+                      </Badge>
+                    </div>
+                    <div className='space-y-1.5'>
+                      {client.email && (
+                        <div className='flex items-center gap-2 text-xs'>
+                          <Mail className='h-3 w-3 text-muted-foreground' />
+                          <span className='truncate'>{client.email}</span>
+                        </div>
+                      )}
+                      {client.phone && (
+                        <div className='flex items-center gap-2 text-xs'>
+                          <Phone className='h-3 w-3 text-muted-foreground' />
+                          <span>{client.phone}</span>
+                        </div>
+                      )}
+                      {client.address && (
+                        <div className='flex items-center gap-2 text-xs'>
+                          <MapPin className='h-3 w-3 text-muted-foreground' />
+                          <span className='truncate'>{client.address}</span>
+                        </div>
+                      )}
                     </div>
                     <div className='mt-3 flex items-center gap-2 border-t pt-3'>
                       <Button
@@ -195,22 +190,21 @@ export default function ExpensesIndex() {
                         size='sm'
                         onClick={(e) => {
                           e.preventDefault();
-                          window.location.href = `/dashboard/expenses/${expense.id}`;
+                          window.location.href = `/dashboard/clients/${client.id}`;
                         }}>
                         <Eye className='mr-1 h-4 w-4' />
                         View
                       </Button>
-                      {expense.receipt_url && (
-                        <a
-                          href={expense.receipt_url}
-                          target='_blank'
-                          rel='noopener noreferrer'>
-                          <Button variant='ghost' size='sm'>
-                            <Download className='mr-1 h-4 w-4' />
-                            Receipt
-                          </Button>
-                        </a>
-                      )}
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        onClick={(e) => {
+                          e.preventDefault();
+                          window.location.href = `/dashboard/clients/${client.id}/edit`;
+                        }}>
+                        <Edit className='mr-1 h-4 w-4' />
+                        Edit
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -220,25 +214,28 @@ export default function ExpensesIndex() {
 
           {/* Desktop Table View */}
           <Card className='hidden md:block'>
-            <CardContent className='p-0 md:p-0'>
+            <CardContent className='p-0'>
               <div className='overflow-x-auto'>
                 <table className='w-full'>
                   <thead className='border-b bg-muted/50'>
                     <tr>
                       <th className='px-6 py-3 text-left text-sm font-medium'>
-                        Date
+                        Name
                       </th>
                       <th className='px-6 py-3 text-left text-sm font-medium'>
-                        Description
+                        Contact Person
                       </th>
                       <th className='px-6 py-3 text-left text-sm font-medium'>
-                        Merchant
+                        Email
                       </th>
                       <th className='px-6 py-3 text-left text-sm font-medium'>
-                        Category
+                        Phone
                       </th>
                       <th className='px-6 py-3 text-left text-sm font-medium'>
-                        Amount
+                        Location
+                      </th>
+                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                        Status
                       </th>
                       <th className='px-6 py-3 text-right text-sm font-medium'>
                         Actions
@@ -246,49 +243,46 @@ export default function ExpensesIndex() {
                     </tr>
                   </thead>
                   <tbody className='divide-y'>
-                    {expenses.map((expense) => (
+                    {clients.map((client) => (
                       <tr
-                        key={expense.id}
+                        key={client.id}
                         className='transition-colors hover:bg-muted/50'>
-                        <td className='px-6 py-4 text-sm'>
-                          {new Date(expense.date).toLocaleDateString()}
-                        </td>
                         <td className='px-6 py-4'>
                           <Link
-                            to={`/dashboard/expenses/${expense.id}`}
+                            to={`/dashboard/clients/${client.id}`}
                             className='font-medium text-primary hover:underline'>
-                            {expense.description}
+                            {client.name}
                           </Link>
                         </td>
                         <td className='px-6 py-4 text-sm'>
-                          {expense.merchant}
+                          {client.contact_person || '—'}
+                        </td>
+                        <td className='px-6 py-4 text-sm'>
+                          {client.email || '—'}
+                        </td>
+                        <td className='px-6 py-4 text-sm'>
+                          {client.phone || '—'}
+                        </td>
+                        <td className='px-6 py-4 text-sm'>
+                          {client.city && client.state
+                            ? `${client.city}, ${client.state}`
+                            : client.city || client.state || '—'}
                         </td>
                         <td className='px-6 py-4'>
-                          {getCategoryBadge(expense.category)}
-                        </td>
-                        <td className='px-6 py-4 text-sm font-medium'>
-                          ${formatCurrency(expense.total)}
+                          <Badge variant='default'>Active</Badge>
                         </td>
                         <td className='px-6 py-4 text-right'>
                           <div className='flex items-center justify-end gap-2'>
-                            <Link to={`/dashboard/expenses/${expense.id}`}>
+                            <Link to={`/dashboard/clients/${client.id}`}>
                               <Button variant='ghost' size='icon' title='View'>
                                 <Eye className='h-4 w-4' />
                               </Button>
                             </Link>
-                            {expense.receipt_url && (
-                              <a
-                                href={expense.receipt_url}
-                                target='_blank'
-                                rel='noopener noreferrer'>
-                                <Button
-                                  variant='ghost'
-                                  size='icon'
-                                  title='Download Receipt'>
-                                  <Download className='h-4 w-4' />
-                                </Button>
-                              </a>
-                            )}
+                            <Link to={`/dashboard/clients/${client.id}/edit`}>
+                              <Button variant='ghost' size='icon' title='Edit'>
+                                <Edit className='h-4 w-4' />
+                              </Button>
+                            </Link>
                           </div>
                         </td>
                       </tr>
@@ -305,7 +299,7 @@ export default function ExpensesIndex() {
               totalItems={totalCount}
               currentPage={currentPage}
               itemsPerPage={itemsPerPage}
-              basePath='/dashboard/expenses'
+              basePath='/dashboard/clients'
               preserveParams={['q']}
             />
           )}

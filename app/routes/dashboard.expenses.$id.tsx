@@ -160,7 +160,7 @@ export default function ExpenseDetail() {
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-muted-foreground">Amount</p>
-                <p className="text-3xl font-bold text-primary">${formatCurrency(expense.amount)}</p>
+                <p className="text-3xl font-bold text-primary">${formatCurrency(expense.total)}</p>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">

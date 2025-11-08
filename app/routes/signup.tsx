@@ -3,7 +3,7 @@ import { Form, Link, useActionData, useNavigation } from "@remix-run/react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
+import { FieldLabel } from "~/components/ui/field-label";
 import { getSession, signUp } from "~/lib/auth.server";
 
 export const meta: MetaFunction = () => {
@@ -82,7 +82,7 @@ export default function Signup() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
+              <FieldLabel htmlFor="fullName" label="Full Name" required />
               <Input
                 id="fullName"
                 name="fullName"
@@ -93,7 +93,7 @@ export default function Signup() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <FieldLabel htmlFor="email" label="Email" required />
               <Input
                 id="email"
                 name="email"
@@ -104,7 +104,7 @@ export default function Signup() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <FieldLabel htmlFor="password" label="Password" required />
               <Input
                 id="password"
                 name="password"
@@ -114,7 +114,7 @@ export default function Signup() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <FieldLabel htmlFor="confirmPassword" label="Confirm Password" required />
               <Input
                 id="confirmPassword"
                 name="confirmPassword"

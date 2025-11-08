@@ -115,6 +115,9 @@ export interface Database {
           balance_due: number
           notes: string | null
           share_token: string | null
+          payment_method: string | null
+          payment_date: string | null
+          payment_reference: string | null
         }
         Insert: {
           id?: string
@@ -145,6 +148,9 @@ export interface Database {
           balance_due: number
           notes?: string | null
           share_token?: string | null
+          payment_method?: string | null
+          payment_date?: string | null
+          payment_reference?: string | null
         }
         Update: {
           id?: string
@@ -175,6 +181,9 @@ export interface Database {
           balance_due?: number
           notes?: string | null
           share_token?: string | null
+          payment_method?: string | null
+          payment_date?: string | null
+          payment_reference?: string | null
         }
       }
       expenses: {
@@ -190,6 +199,10 @@ export interface Database {
           tax: number | null
           description: string | null
           receipt_url: string | null
+          is_tax_deductible: boolean
+          business_use_percentage: number
+          tax_category: string | null
+          deductible_amount: number
         }
         Insert: {
           id?: string
@@ -203,6 +216,9 @@ export interface Database {
           tax?: number | null
           description?: string | null
           receipt_url?: string | null
+          is_tax_deductible?: boolean
+          business_use_percentage?: number
+          tax_category?: string | null
         }
         Update: {
           id?: string
@@ -216,6 +232,9 @@ export interface Database {
           tax?: number | null
           description?: string | null
           receipt_url?: string | null
+          is_tax_deductible?: boolean
+          business_use_percentage?: number
+          tax_category?: string | null
         }
       }
       line_item_templates: {
@@ -248,6 +267,151 @@ export interface Database {
           description?: string | null
           rate?: number
           quantity?: number
+        }
+      }
+      mileage: {
+        Row: {
+          id: string
+          user_id: string
+          created_at: string
+          updated_at: string
+          date: string
+          purpose: string
+          miles: number
+          rate_per_mile: number
+          total: number
+          notes: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          created_at?: string
+          updated_at?: string
+          date: string
+          purpose: string
+          miles: number
+          rate_per_mile?: number
+          notes?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          created_at?: string
+          updated_at?: string
+          date?: string
+          purpose?: string
+          miles?: number
+          rate_per_mile?: number
+          notes?: string | null
+        }
+      }
+      household_settings: {
+        Row: {
+          id: string
+          user_id: string
+          created_at: string
+          updated_at: string
+          rent_business_percentage: number
+          utilities_business_percentage: number
+          internet_business_percentage: number
+          monthly_rent: number | null
+          monthly_utilities: number | null
+          monthly_internet: number | null
+          total_home_square_feet: number | null
+          office_square_feet: number | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          created_at?: string
+          updated_at?: string
+          rent_business_percentage?: number
+          utilities_business_percentage?: number
+          internet_business_percentage?: number
+          monthly_rent?: number | null
+          monthly_utilities?: number | null
+          monthly_internet?: number | null
+          total_home_square_feet?: number | null
+          office_square_feet?: number | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          created_at?: string
+          updated_at?: string
+          rent_business_percentage?: number
+          utilities_business_percentage?: number
+          internet_business_percentage?: number
+          monthly_rent?: number | null
+          monthly_utilities?: number | null
+          monthly_internet?: number | null
+          total_home_square_feet?: number | null
+          office_square_feet?: number | null
+        }
+      }
+      clients: {
+        Row: {
+          id: string
+          user_id: string
+          created_at: string
+          updated_at: string
+          name: string
+          email: string | null
+          phone: string | null
+          mobile: string | null
+          fax: string | null
+          website: string | null
+          address: string | null
+          city: string | null
+          state: string | null
+          postal_code: string | null
+          country: string | null
+          contact_person: string | null
+          tax_id: string | null
+          notes: string | null
+          is_active: boolean
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          created_at?: string
+          updated_at?: string
+          name: string
+          email?: string | null
+          phone?: string | null
+          mobile?: string | null
+          fax?: string | null
+          website?: string | null
+          address?: string | null
+          city?: string | null
+          state?: string | null
+          postal_code?: string | null
+          country?: string | null
+          contact_person?: string | null
+          tax_id?: string | null
+          notes?: string | null
+          is_active?: boolean
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          created_at?: string
+          updated_at?: string
+          name?: string
+          email?: string | null
+          phone?: string | null
+          mobile?: string | null
+          fax?: string | null
+          website?: string | null
+          address?: string | null
+          city?: string | null
+          state?: string | null
+          postal_code?: string | null
+          country?: string | null
+          contact_person?: string | null
+          tax_id?: string | null
+          notes?: string | null
+          is_active?: boolean
         }
       }
     }

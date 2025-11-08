@@ -5,6 +5,7 @@ import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { FieldLabel } from "~/components/ui/field-label";
 import { Select } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
 import { requireAuth } from "~/lib/auth.server";
@@ -66,12 +67,15 @@ export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
 
   // Parse form data
+  const terms = formData.get("terms") as string;
+  const customTerms = formData.get("customTerms") as string;
+
   const invoiceData = {
     user_id: session.user.id,
     invoice_name: formData.get("invoiceName") as string,
     invoice_number: formData.get("invoiceNumber") as string,
     date: formData.get("date") as string,
-    terms: formData.get("terms") as string,
+    terms: terms === "custom" && customTerms ? customTerms : terms,
     status: "draft",
 
     // From fields
@@ -125,6 +129,7 @@ export default function NewInvoice() {
   const [lineItems, setLineItems] = useState([
     { description: "", rate: "", quantity: "1", amount: "" }
   ]);
+  const [showCustomTerms, setShowCustomTerms] = useState(false);
 
   const addLineItem = () => {
     setLineItems([...lineItems, { description: "", rate: "", quantity: "1", amount: "" }]);
@@ -198,7 +203,7 @@ export default function NewInvoice() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="invoiceName">Invoice Name</Label>
+              <FieldLabel htmlFor="invoiceName" label="Invoice Name" required />
               <Input
                 id="invoiceName"
                 name="invoiceName"
@@ -217,7 +222,7 @@ export default function NewInvoice() {
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="fromName">Name</Label>
+              <FieldLabel htmlFor="fromName" label="Name" required />
               <Input
                 id="fromName"
                 name="fromName"
@@ -225,7 +230,7 @@ export default function NewInvoice() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fromEmail">Email</Label>
+              <FieldLabel htmlFor="fromEmail" label="Email" required />
               <Input
                 id="fromEmail"
                 name="fromEmail"
@@ -234,7 +239,7 @@ export default function NewInvoice() {
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="fromAddress">Address</Label>
+              <FieldLabel htmlFor="fromAddress" label="Address" required />
               <Input
                 id="fromAddress"
                 name="fromAddress"
@@ -242,7 +247,7 @@ export default function NewInvoice() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fromPhone">Phone</Label>
+              <FieldLabel htmlFor="fromPhone" label="Phone" required />
               <Input
                 id="fromPhone"
                 name="fromPhone"
@@ -250,7 +255,7 @@ export default function NewInvoice() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fromBusinessNumber">Business Number</Label>
+              <FieldLabel htmlFor="fromBusinessNumber" label="Business Number" required />
               <Input
                 id="fromBusinessNumber"
                 name="fromBusinessNumber"
@@ -258,7 +263,7 @@ export default function NewInvoice() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fromWebsite">Website</Label>
+              <FieldLabel htmlFor="fromWebsite" label="Website" required />
               <Input
                 id="fromWebsite"
                 name="fromWebsite"
@@ -266,7 +271,7 @@ export default function NewInvoice() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fromOwner">Owner</Label>
+              <FieldLabel htmlFor="fromOwner" label="Owner" required />
               <Input
                 id="fromOwner"
                 name="fromOwner"
@@ -284,7 +289,7 @@ export default function NewInvoice() {
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="billToName">Name</Label>
+              <FieldLabel htmlFor="billToName" label="Name" required />
               <Input
                 id="billToName"
                 name="billToName"
@@ -292,7 +297,7 @@ export default function NewInvoice() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="billToEmail">Email</Label>
+              <FieldLabel htmlFor="billToEmail" label="Email" required />
               <Input
                 id="billToEmail"
                 name="billToEmail"
@@ -300,28 +305,28 @@ export default function NewInvoice() {
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="billToAddress">Address</Label>
+              <FieldLabel htmlFor="billToAddress" label="Address" required />
               <Input
                 id="billToAddress"
                 name="billToAddress"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="billToPhone">Phone</Label>
+              <FieldLabel htmlFor="billToPhone" label="Phone" required />
               <Input
                 id="billToPhone"
                 name="billToPhone"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="billToMobile">Mobile</Label>
+              <FieldLabel htmlFor="billToMobile" label="Mobile" required />
               <Input
                 id="billToMobile"
                 name="billToMobile"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="billToFax">Fax</Label>
+              <FieldLabel htmlFor="billToFax" label="Fax" required />
               <Input
                 id="billToFax"
                 name="billToFax"
@@ -334,7 +339,7 @@ export default function NewInvoice() {
         <Card>
           <CardContent className="grid gap-4 pt-6 sm:grid-cols-2 md:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="invoiceNumber">Invoice Number</Label>
+              <FieldLabel htmlFor="invoiceNumber" label="Invoice Number" required />
               <Input
                 id="invoiceNumber"
                 name="invoiceNumber"
@@ -343,7 +348,7 @@ export default function NewInvoice() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
+              <FieldLabel htmlFor="date" label="Date" required />
               <Input
                 id="date"
                 name="date"
@@ -353,8 +358,13 @@ export default function NewInvoice() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="terms">Terms</Label>
-              <Select id="terms" name="terms" required>
+              <FieldLabel htmlFor="terms" label="Terms" required />
+              <Select
+                id="terms"
+                name="terms"
+                required
+                onChange={(e) => setShowCustomTerms(e.target.value === "custom")}
+              >
                 <option value="none">No Terms</option>
                 <option value="on_receipt">On Receipt</option>
                 <option value="1_day">Next Day</option>
@@ -366,6 +376,16 @@ export default function NewInvoice() {
                 <option value="30_days">30 Days</option>
                 <option value="custom">Custom</option>
               </Select>
+              {showCustomTerms && (
+                <div className="mt-2">
+                  <Input
+                    id="customTerms"
+                    name="customTerms"
+                    placeholder="Enter custom payment terms (e.g., Net 45, Due upon completion, etc.)"
+                    required={showCustomTerms}
+                  />
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

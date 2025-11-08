@@ -2,15 +2,16 @@ import { json, type LoaderFunctionArgs, type MetaFunction, type ActionFunctionAr
 import { Link, useLoaderData, Form, useNavigation, useActionData, useSubmit } from "@remix-run/react";
 import { ArrowLeft, Edit, Mail, Printer, Share2, Trash2, CheckCircle, Download, Check } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import { Select } from "~/components/ui/select";
+import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { FieldLabel } from "~/components/ui/field-label";
 import { requireAuth } from "~/lib/auth.server";
 import { formatCurrency } from "~/lib/utils";
 import { useState } from "react";
 import { sendInvoiceEmail } from "~/lib/email.server";
-import { formatCurrency } from "~/lib/utils";
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
@@ -144,6 +145,31 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
   }
 
+  // Update Payment Information
+  if (intent === "update_payment") {
+    const paymentMethod = formData.get("paymentMethod") as string | null;
+    const paymentDate = formData.get("paymentDate") as string | null;
+    const paymentReference = formData.get("paymentReference") as string | null;
+
+    const { error } = await supabase
+      .from("invoices")
+      .update({
+        payment_method: paymentMethod,
+        payment_date: paymentDate,
+        payment_reference: paymentReference,
+        // Auto-update status to paid if payment method is added and status is not already paid
+        ...(paymentMethod && paymentDate ? { status: "paid" } : {})
+      })
+      .eq("id", id)
+      .eq("user_id", session.user.id);
+
+    if (error) {
+      return json({ error: error.message }, { status: 400, headers });
+    }
+
+    return json({ success: true, message: "Payment information updated successfully" }, { headers });
+  }
+
   return json({ error: "Invalid action" }, { status: 400, headers });
 }
 
@@ -170,6 +196,7 @@ export default function InvoiceDetail() {
   const isDeleting = navigation.state === "submitting" && navigation.formData?.get("intent") === "delete";
   const isUpdatingStatus = navigation.state === "submitting" && navigation.formData?.get("intent") === "update_status";
   const isSendingEmail = navigation.state === "submitting" && navigation.formData?.get("intent") === "send_email";
+  const isUpdatingPayment = navigation.state === "submitting" && navigation.formData?.get("intent") === "update_payment";
   const [linkCopied, setLinkCopied] = useState(false);
 
   // Parse line items
@@ -216,13 +243,48 @@ export default function InvoiceDetail() {
           </div>
         </div>
 
+        {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
           <Link to={`/dashboard/invoices/${invoice.id}/edit`}>
-            <Button variant="outline" size="sm">
+            <Button size="sm">
               <Edit className="mr-2 h-4 w-4" />
               Edit
             </Button>
           </Link>
+
+          <Form method="post">
+            <input type="hidden" name="intent" value="send_email" />
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              disabled={isSendingEmail || !invoice.bill_to_email}
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              {isSendingEmail ? "Sending..." : "Email"}
+            </Button>
+          </Form>
+
+          <Link to={`/dashboard/invoices/${invoice.id}/pdf`} target="_blank" reloadDocument>
+            <Button variant="outline" size="sm">
+              <Download className="mr-2 h-4 w-4" />
+              PDF
+            </Button>
+          </Link>
+
+          <Button variant="outline" size="sm" onClick={copyShareableLink}>
+            {linkCopied ? (
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
+              </>
+            )}
+          </Button>
 
           <Form method="post" className="flex items-center gap-2">
             <input type="hidden" name="intent" value="update_status" />
@@ -250,42 +312,6 @@ export default function InvoiceDetail() {
           </Form>
 
           <Form method="post">
-            <input type="hidden" name="intent" value="send_email" />
-            <Button
-              type="submit"
-              variant="outline"
-              size="sm"
-              disabled={isSendingEmail || !invoice.bill_to_email}
-            >
-              <Mail className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">{isSendingEmail ? "Sending..." : "Email"}</span>
-              <span className="sm:hidden">{isSendingEmail ? "..." : "Email"}</span>
-            </Button>
-          </Form>
-
-          <Link to={`/dashboard/invoices/${invoice.id}/pdf`} target="_blank" reloadDocument>
-            <Button variant="outline" size="sm">
-              <Download className="mr-2 h-4 w-4" />
-              PDF
-            </Button>
-          </Link>
-
-          <Button variant="outline" size="sm" onClick={copyShareableLink}>
-            {linkCopied ? (
-              <>
-                <Check className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Link Copied!</span>
-                <span className="sm:hidden">Copied</span>
-              </>
-            ) : (
-              <>
-                <Share2 className="mr-2 h-4 w-4" />
-                Share
-              </>
-            )}
-          </Button>
-
-          <Form method="post">
             <input type="hidden" name="intent" value="delete" />
             <Button
               type="submit"
@@ -294,8 +320,7 @@ export default function InvoiceDetail() {
               disabled={isDeleting}
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">{isDeleting ? "Deleting..." : "Delete"}</span>
-              <span className="sm:hidden">Del</span>
+              {isDeleting ? "Deleting..." : "Delete"}
             </Button>
           </Form>
         </div>
@@ -415,6 +440,67 @@ export default function InvoiceDetail() {
               <p className="whitespace-pre-wrap text-sm text-muted-foreground">{invoice.notes}</p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Payment Information Section */}
+      <Card className="mx-auto max-w-4xl">
+        <CardHeader>
+          <CardTitle>Payment Information</CardTitle>
+          <CardDescription>
+            Track when and how this invoice was paid
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form method="post">
+            <input type="hidden" name="intent" value="update_payment" />
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <FieldLabel htmlFor="paymentMethod" label="Payment Method" />
+                <Select
+                  id="paymentMethod"
+                  name="paymentMethod"
+                  defaultValue={invoice.payment_method || ""}
+                  disabled={isUpdatingPayment}
+                  className="w-full"
+                >
+                  <option value="">Not paid yet</option>
+                  <option value="check">Check</option>
+                  <option value="cash">Cash</option>
+                  <option value="direct_deposit">Direct Deposit</option>
+                  <option value="paypal">PayPal</option>
+                  <option value="venmo">Venmo</option>
+                  <option value="zelle">Zelle</option>
+                  <option value="wire_transfer">Wire Transfer</option>
+                  <option value="other">Other</option>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <FieldLabel htmlFor="paymentDate" label="Payment Date" />
+                <Input
+                  id="paymentDate"
+                  name="paymentDate"
+                  type="date"
+                  defaultValue={invoice.payment_date || ""}
+                  disabled={isUpdatingPayment}
+                />
+              </div>
+              <div className="space-y-2">
+                <FieldLabel htmlFor="paymentReference" label="Check #/Transaction ID" />
+                <Input
+                  id="paymentReference"
+                  name="paymentReference"
+                  type="text"
+                  placeholder="Check # or Transaction ID"
+                  defaultValue={invoice.payment_reference || ""}
+                  disabled={isUpdatingPayment}
+                />
+              </div>
+            </div>
+            <Button type="submit" className="mt-4" disabled={isUpdatingPayment}>
+              {isUpdatingPayment ? "Updating..." : "Update Payment Info"}
+            </Button>
+          </Form>
         </CardContent>
       </Card>
     </div>

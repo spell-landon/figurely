@@ -1,6 +1,6 @@
-import { json, redirect, unstable_createMemoryUploadHandler, unstable_parseMultipartFormData, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
-import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
-import { Save, Upload, X } from "lucide-react";
+import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
+import { Form, useActionData, useLoaderData, useNavigation, Link } from "@remix-run/react";
+import { Save, Upload, X, ArrowLeft } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
@@ -11,28 +11,64 @@ import { Textarea } from "~/components/ui/textarea";
 import { requireAuth } from "~/lib/auth.server";
 import { useState } from "react";
 
-export const meta: MetaFunction = () => {
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
-    { title: "New Expense - Ledgerly" },
-    { name: "description", content: "Add a new expense" },
+    { title: `Edit Expense ${data?.expense.description || ""} - Ledgerly` },
+    { name: "description", content: "Edit expense" },
   ];
 };
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const { session, headers } = await requireAuth(request);
-  return json({ user: session.user }, { headers });
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  const { session, supabase, headers } = await requireAuth(request);
+  const { id } = params;
+
+  if (!id) {
+    throw new Response("Expense ID required", { status: 400 });
+  }
+
+  const { data: expense, error } = await supabase
+    .from("expenses")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", session.user.id)
+    .single();
+
+  if (error || !expense) {
+    throw new Response("Expense not found", { status: 404 });
+  }
+
+  return json({ expense }, { headers });
 }
 
-export async function action({ request }: ActionFunctionArgs) {
+export async function action({ request, params }: ActionFunctionArgs) {
   const { session, supabase, headers } = await requireAuth(request);
+  const { id } = params;
   const formData = await request.formData();
+
+  if (!id) {
+    throw new Response("Expense ID required", { status: 400 });
+  }
+
+  // Get existing expense to check for receipt
+  const { data: existingExpense } = await supabase
+    .from("expenses")
+    .select("receipt_url")
+    .eq("id", id)
+    .eq("user_id", session.user.id)
+    .single();
 
   // Handle file upload if present
   const receiptFile = formData.get("receipt") as File | null;
-  let receiptUrl: string | null = null;
+  let receiptUrl: string | null = existingExpense?.receipt_url || null;
 
   if (receiptFile && receiptFile.size > 0) {
-    // Upload to Supabase Storage
+    // Delete old receipt if exists
+    if (existingExpense?.receipt_url) {
+      const oldFileName = existingExpense.receipt_url.split('/').slice(-2).join('/');
+      await supabase.storage.from('receipts').remove([oldFileName]);
+    }
+
+    // Upload new receipt
     const fileExt = receiptFile.name.split('.').pop();
     const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
 
@@ -54,7 +90,6 @@ export async function action({ request }: ActionFunctionArgs) {
 
   // Parse form data
   const expenseData = {
-    user_id: session.user.id,
     merchant: formData.get("vendor") as string || "",
     description: formData.get("description") as string || null,
     total: parseFloat(formData.get("amount") as string || "0"),
@@ -67,26 +102,25 @@ export async function action({ request }: ActionFunctionArgs) {
     business_use_percentage: parseFloat(formData.get("business_use_percentage") as string || "100"),
   };
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("expenses")
-    .insert(expenseData)
-    .select()
-    .single();
+    .update(expenseData)
+    .eq("id", id)
+    .eq("user_id", session.user.id);
 
   if (error) {
     return json({ error: error.message }, { status: 400, headers });
   }
 
-  return redirect(`/dashboard/expenses/${data.id}`, { headers });
+  return redirect(`/dashboard/expenses/${id}`, { headers });
 }
 
-export default function NewExpense() {
+export default function EditExpense() {
+  const { expense } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
-  const today = new Date().toISOString().split("T")[0];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -105,11 +139,16 @@ export default function NewExpense() {
 
   return (
     <div className="container mx-auto space-y-6 p-4 md:p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4">
+        <Link to={`/dashboard/expenses/${expense.id}`}>
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        </Link>
         <div>
-          <h1 className="text-2xl font-bold md:text-3xl">Add New Expense</h1>
+          <h1 className="text-2xl font-bold md:text-3xl">Edit Expense</h1>
           <p className="text-sm text-muted-foreground md:text-base">
-            Track a business expense
+            Update expense details
           </p>
         </div>
       </div>
@@ -129,17 +168,19 @@ export default function NewExpense() {
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
-                <FieldLabel htmlFor="description" label="Description *" required />
+                <FieldLabel htmlFor="description" label="Description" required />
                 <Input
                   id="description"
                   name="description"
                   placeholder="e.g., Office supplies, Client lunch, Travel expenses"
+                  defaultValue={expense.description || ""}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
               <div className="space-y-2">
-                <FieldLabel htmlFor="amount" label="Amount *" required />
+                <FieldLabel htmlFor="amount" label="Amount" required />
                 <Input
                   id="amount"
                   name="amount"
@@ -147,24 +188,27 @@ export default function NewExpense() {
                   step="0.01"
                   min="0"
                   placeholder="0.00"
+                  defaultValue={expense.total}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
               <div className="space-y-2">
-                <FieldLabel htmlFor="date" label="Date *" required />
+                <FieldLabel htmlFor="date" label="Date" required />
                 <Input
                   id="date"
                   name="date"
                   type="date"
-                  defaultValue={today}
+                  defaultValue={expense.date}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
               <div className="space-y-2">
-                <FieldLabel htmlFor="category" label="Category *" required />
-                <Select id="category" name="category" required>
+                <FieldLabel htmlFor="category" label="Category" required />
+                <Select id="category" name="category" defaultValue={expense.category} required disabled={isSubmitting}>
                   <option value="">Select a category</option>
                   <option value="travel">Travel</option>
                   <option value="meals">Meals & Entertainment</option>
@@ -179,22 +223,26 @@ export default function NewExpense() {
               </div>
 
               <div className="space-y-2">
-                <FieldLabel htmlFor="vendor" label="Vendor/Merchant" required />
+                <FieldLabel htmlFor="vendor" label="Vendor/Merchant" />
                 <Input
                   id="vendor"
                   name="vendor"
                   placeholder="e.g., Amazon, Starbucks, Office Depot"
+                  defaultValue={expense.merchant || ""}
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <FieldLabel htmlFor="notes" label="Notes" required />
+              <FieldLabel htmlFor="notes" label="Notes" />
               <Textarea
                 id="notes"
                 name="notes"
                 placeholder="Additional details about this expense..."
                 rows={3}
+                defaultValue={expense.notes || ""}
+                disabled={isSubmitting}
               />
             </div>
           </CardContent>
@@ -212,7 +260,8 @@ export default function NewExpense() {
                 type="checkbox"
                 id="is_tax_deductible"
                 name="is_tax_deductible"
-                defaultChecked
+                defaultChecked={expense.is_tax_deductible}
+                disabled={isSubmitting}
                 className="h-4 w-4 rounded border-gray-300"
               />
               <Label htmlFor="is_tax_deductible" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -223,7 +272,7 @@ export default function NewExpense() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <FieldLabel htmlFor="tax_category" label="Tax Category" />
-                <Select id="tax_category" name="tax_category">
+                <Select id="tax_category" name="tax_category" defaultValue={expense.tax_category || ""} disabled={isSubmitting}>
                   <option value="">Select category</option>
                   <option value="rent">Rent/Mortgage</option>
                   <option value="utilities">Utilities</option>
@@ -250,7 +299,8 @@ export default function NewExpense() {
                     step="0.1"
                     min="0"
                     max="100"
-                    defaultValue="100"
+                    defaultValue={expense.business_use_percentage}
+                    disabled={isSubmitting}
                   />
                   <span className="text-sm text-muted-foreground">%</span>
                 </div>
@@ -266,17 +316,33 @@ export default function NewExpense() {
         <Card>
           <CardHeader>
             <CardTitle>Receipt</CardTitle>
-            <CardDescription>Upload a receipt or invoice (optional)</CardDescription>
+            <CardDescription>
+              {expense.receipt_url ? "Upload a new receipt to replace the current one" : "Upload a receipt or invoice (optional)"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {expense.receipt_url && !selectedFile && (
+                <div className="rounded-md border bg-muted p-3">
+                  <p className="text-sm text-muted-foreground">Current receipt on file</p>
+                  <a
+                    href={expense.receipt_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    View current receipt
+                  </a>
+                </div>
+              )}
+
               <div className="flex flex-col gap-2">
                 <Label htmlFor="receipt" className="cursor-pointer">
                   <div className="flex items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 transition-colors hover:border-muted-foreground/50">
                     <div className="text-center">
                       <Upload className="mx-auto h-8 w-8 text-muted-foreground md:h-12 md:w-12" />
                       <p className="mt-2 text-xs text-muted-foreground md:text-sm">
-                        Click to upload or drag and drop
+                        {expense.receipt_url ? "Click to upload a new receipt" : "Click to upload or drag and drop"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         PNG, JPG, PDF up to 10MB
@@ -290,6 +356,7 @@ export default function NewExpense() {
                     accept="image/*,.pdf"
                     className="hidden"
                     onChange={handleFileChange}
+                    disabled={isSubmitting}
                   />
                 </Label>
 
@@ -307,6 +374,7 @@ export default function NewExpense() {
                       variant="ghost"
                       size="sm"
                       onClick={clearFile}
+                      disabled={isSubmitting}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -318,13 +386,15 @@ export default function NewExpense() {
         </Card>
 
         {/* Actions */}
-        <div className="flex flex-col gap-4 md:flex-row md:justify-end">
-          <Button type="button" variant="outline" disabled={isSubmitting} className="w-full md:w-auto">
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting} className="w-full md:w-auto">
+        <div className="flex items-center justify-end gap-4">
+          <Link to={`/dashboard/expenses/${expense.id}`}>
+            <Button type="button" variant="outline" disabled={isSubmitting}>
+              Cancel
+            </Button>
+          </Link>
+          <Button type="submit" disabled={isSubmitting}>
             <Save className="mr-2 h-4 w-4" />
-            {isSubmitting ? "Saving..." : "Save Expense"}
+            {isSubmitting ? "Saving..." : "Save Changes"}
           </Button>
         </div>
       </Form>
