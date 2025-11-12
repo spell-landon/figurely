@@ -54,10 +54,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
     .eq("user_id", session.user.id)
     .order("name", { ascending: true });
 
+  // Get active clients for dropdown
+  const { data: clients } = await supabase
+    .from("clients")
+    .select("*")
+    .eq("user_id", session.user.id)
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
   return json({
     nextInvoiceNumber,
     businessSettings,
     templates: templates || [],
+    clients: clients || [],
     user: session.user,
   }, { headers });
 }
@@ -121,7 +130,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function NewInvoice() {
-  const { nextInvoiceNumber, businessSettings, templates } = useLoaderData<typeof loader>();
+  const { nextInvoiceNumber, businessSettings, templates, clients } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -131,6 +140,14 @@ export default function NewInvoice() {
   ]);
   const [showCustomTerms, setShowCustomTerms] = useState(false);
 
+  // State for Bill To fields
+  const [billToName, setBillToName] = useState("");
+  const [billToEmail, setBillToEmail] = useState("");
+  const [billToAddress, setBillToAddress] = useState("");
+  const [billToPhone, setBillToPhone] = useState("");
+  const [billToMobile, setBillToMobile] = useState("");
+  const [billToFax, setBillToFax] = useState("");
+
   const addLineItem = () => {
     setLineItems([...lineItems, { description: "", rate: "", quantity: "1", amount: "" }]);
   };
@@ -139,15 +156,56 @@ export default function NewInvoice() {
     const template = templates.find((t: any) => t.id === templateId);
     if (template) {
       const amount = (parseFloat(template.rate) * parseFloat(template.quantity)).toFixed(2);
-      setLineItems([
-        ...lineItems,
-        {
-          description: template.description,
-          rate: template.rate.toString(),
-          quantity: template.quantity.toString(),
-          amount: amount,
-        }
-      ]);
+      const newItem = {
+        description: template.description,
+        rate: template.rate.toString(),
+        quantity: template.quantity.toString(),
+        amount: amount,
+      };
+
+      // Smart replacement: if there's only one blank line item, replace it instead of adding
+      const shouldReplace = lineItems.length === 1 &&
+        !lineItems[0].description &&
+        !lineItems[0].rate &&
+        lineItems[0].quantity === "1" &&
+        !lineItems[0].amount;
+
+      if (shouldReplace) {
+        setLineItems([newItem]);
+      } else {
+        setLineItems([...lineItems, newItem]);
+      }
+    }
+  };
+
+  const selectClient = (clientId: string) => {
+    if (!clientId) {
+      // Clear selection
+      setBillToName("");
+      setBillToEmail("");
+      setBillToAddress("");
+      setBillToPhone("");
+      setBillToMobile("");
+      setBillToFax("");
+      return;
+    }
+
+    const client = clients.find((c: any) => c.id === clientId);
+    if (client) {
+      setBillToName(client.name || "");
+      setBillToEmail(client.email || "");
+      setBillToPhone(client.phone || "");
+      setBillToMobile(client.mobile || "");
+      setBillToFax(client.fax || "");
+
+      // Format address from multiple fields
+      const addressParts = [
+        client.address,
+        client.city,
+        client.state,
+        client.postal_code
+      ].filter(Boolean);
+      setBillToAddress(addressParts.join(", "));
     }
   };
 
@@ -288,11 +346,31 @@ export default function NewInvoice() {
             <CardDescription>Client information</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
+            {clients.length > 0 && (
+              <div className="space-y-2 md:col-span-2">
+                <FieldLabel htmlFor="clientSelect" label="Select Client" />
+                <Select
+                  id="clientSelect"
+                  onChange={(e) => selectClient(e.target.value)}
+                  defaultValue=""
+                >
+                  <option value="">Select a client...</option>
+                  {clients.map((client: any) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
+                  <option value="">─── Clear Selection ───</option>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <FieldLabel htmlFor="billToName" label="Name" required />
               <Input
                 id="billToName"
                 name="billToName"
+                value={billToName}
+                onChange={(e) => setBillToName(e.target.value)}
                 required
               />
             </div>
@@ -302,6 +380,8 @@ export default function NewInvoice() {
                 id="billToEmail"
                 name="billToEmail"
                 type="email"
+                value={billToEmail}
+                onChange={(e) => setBillToEmail(e.target.value)}
               />
             </div>
             <div className="space-y-2 md:col-span-2">
@@ -309,6 +389,8 @@ export default function NewInvoice() {
               <Input
                 id="billToAddress"
                 name="billToAddress"
+                value={billToAddress}
+                onChange={(e) => setBillToAddress(e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -316,6 +398,8 @@ export default function NewInvoice() {
               <Input
                 id="billToPhone"
                 name="billToPhone"
+                value={billToPhone}
+                onChange={(e) => setBillToPhone(e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -323,6 +407,8 @@ export default function NewInvoice() {
               <Input
                 id="billToMobile"
                 name="billToMobile"
+                value={billToMobile}
+                onChange={(e) => setBillToMobile(e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -330,6 +416,8 @@ export default function NewInvoice() {
               <Input
                 id="billToFax"
                 name="billToFax"
+                value={billToFax}
+                onChange={(e) => setBillToFax(e.target.value)}
               />
             </div>
           </CardContent>

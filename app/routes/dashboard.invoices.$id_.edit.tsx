@@ -38,8 +38,17 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response("Invoice not found", { status: 404 });
   }
 
+  // Get active clients for dropdown
+  const { data: clients } = await supabase
+    .from("clients")
+    .select("*")
+    .eq("user_id", session.user.id)
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
   return json({
     invoice,
+    clients: clients || [],
     user: session.user,
   }, { headers });
 }
@@ -107,7 +116,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function EditInvoice() {
-  const { invoice } = useLoaderData<typeof loader>();
+  const { invoice, clients } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -123,6 +132,14 @@ export default function EditInvoice() {
 
   const [lineItems, setLineItems] = useState(initialLineItems);
   const [showCustomTerms, setShowCustomTerms] = useState(isCustomTerms);
+
+  // State for Bill To fields (initialized from invoice)
+  const [billToName, setBillToName] = useState(invoice.bill_to_name || "");
+  const [billToEmail, setBillToEmail] = useState(invoice.bill_to_email || "");
+  const [billToAddress, setBillToAddress] = useState(invoice.bill_to_address || "");
+  const [billToPhone, setBillToPhone] = useState(invoice.bill_to_phone || "");
+  const [billToMobile, setBillToMobile] = useState(invoice.bill_to_mobile || "");
+  const [billToFax, setBillToFax] = useState(invoice.bill_to_fax || "");
 
   const addLineItem = () => {
     setLineItems([...lineItems, { description: "", rate: "", quantity: "1", amount: "" }]);
@@ -144,6 +161,37 @@ export default function EditInvoice() {
     }
 
     setLineItems(updated);
+  };
+
+  const selectClient = (clientId: string) => {
+    if (!clientId) {
+      // Clear selection
+      setBillToName("");
+      setBillToEmail("");
+      setBillToAddress("");
+      setBillToPhone("");
+      setBillToMobile("");
+      setBillToFax("");
+      return;
+    }
+
+    const client = clients.find((c: any) => c.id === clientId);
+    if (client) {
+      setBillToName(client.name || "");
+      setBillToEmail(client.email || "");
+      setBillToPhone(client.phone || "");
+      setBillToMobile(client.mobile || "");
+      setBillToFax(client.fax || "");
+
+      // Format address from multiple fields
+      const addressParts = [
+        client.address,
+        client.city,
+        client.state,
+        client.postal_code
+      ].filter(Boolean);
+      setBillToAddress(addressParts.join(", "));
+    }
   };
 
   // Calculate totals
@@ -271,12 +319,31 @@ export default function EditInvoice() {
             <CardDescription>Client information</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
+            {clients.length > 0 && (
+              <div className="space-y-2 md:col-span-2">
+                <FieldLabel htmlFor="clientSelect" label="Select Client" />
+                <Select
+                  id="clientSelect"
+                  onChange={(e) => selectClient(e.target.value)}
+                  defaultValue=""
+                >
+                  <option value="">Select a client...</option>
+                  {clients.map((client: any) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
+                  <option value="">─── Clear Selection ───</option>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <FieldLabel htmlFor="billToName" label="Name" required />
               <Input
                 id="billToName"
                 name="billToName"
-                defaultValue={invoice.bill_to_name || ""}
+                value={billToName}
+                onChange={(e) => setBillToName(e.target.value)}
                 required
               />
             </div>
@@ -286,7 +353,8 @@ export default function EditInvoice() {
                 id="billToEmail"
                 name="billToEmail"
                 type="email"
-                defaultValue={invoice.bill_to_email || ""}
+                value={billToEmail}
+                onChange={(e) => setBillToEmail(e.target.value)}
               />
             </div>
             <div className="space-y-2 md:col-span-2">
@@ -294,7 +362,8 @@ export default function EditInvoice() {
               <Input
                 id="billToAddress"
                 name="billToAddress"
-                defaultValue={invoice.bill_to_address || ""}
+                value={billToAddress}
+                onChange={(e) => setBillToAddress(e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -302,7 +371,8 @@ export default function EditInvoice() {
               <Input
                 id="billToPhone"
                 name="billToPhone"
-                defaultValue={invoice.bill_to_phone || ""}
+                value={billToPhone}
+                onChange={(e) => setBillToPhone(e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -310,7 +380,8 @@ export default function EditInvoice() {
               <Input
                 id="billToMobile"
                 name="billToMobile"
-                defaultValue={invoice.bill_to_mobile || ""}
+                value={billToMobile}
+                onChange={(e) => setBillToMobile(e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -318,7 +389,8 @@ export default function EditInvoice() {
               <Input
                 id="billToFax"
                 name="billToFax"
-                defaultValue={invoice.bill_to_fax || ""}
+                value={billToFax}
+                onChange={(e) => setBillToFax(e.target.value)}
               />
             </div>
           </CardContent>
