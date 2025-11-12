@@ -12,6 +12,7 @@ import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
+import { Select } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
 import { requireAuth } from '~/lib/auth.server';
 
@@ -48,6 +49,7 @@ export async function action({ request }: ActionFunctionArgs) {
     contact_person: formData.get('contact_person') as string || null,
     tax_id: formData.get('tax_id') as string || null,
     notes: formData.get('notes') as string || null,
+    status: (formData.get('status') as string) || 'active',
     is_active: true,
   };
 
@@ -137,6 +139,22 @@ export default function NewClient() {
                     defaultValue={actionData?.fields?.contact_person || ''}
                   />
                 </div>
+              </div>
+
+              <div className='space-y-2'>
+                <Label htmlFor='status'>Client Status</Label>
+                <Select
+                  id='status'
+                  name='status'
+                  defaultValue={actionData?.fields?.status || 'active'}
+                >
+                  <option value='lead'>Lead</option>
+                  <option value='prospect'>Prospect</option>
+                  <option value='active'>Active</option>
+                  <option value='on_hold'>On Hold</option>
+                  <option value='inactive'>Inactive</option>
+                  <option value='archived'>Archived</option>
+                </Select>
               </div>
 
               <div className='space-y-2'>

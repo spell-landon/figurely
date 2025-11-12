@@ -17,6 +17,20 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   ];
 };
 
+function getStatusBadge(status: string) {
+  const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' }> = {
+    lead: { label: 'Lead', variant: 'secondary' },
+    prospect: { label: 'Prospect', variant: 'outline' },
+    active: { label: 'Active', variant: 'success' },
+    on_hold: { label: 'On Hold', variant: 'secondary' },
+    inactive: { label: 'Inactive', variant: 'destructive' },
+    archived: { label: 'Archived', variant: 'outline' },
+  };
+
+  const config = statusConfig[status] || { label: 'Active', variant: 'default' as const };
+  return <Badge variant={config.variant}>{config.label}</Badge>;
+}
+
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { session, supabase, headers } = await requireAuth(request);
 
@@ -63,9 +77,7 @@ export default function ClientDetail() {
           <div>
             <div className='flex items-center gap-2'>
               <h1 className='text-xl font-bold md:text-3xl'>{client.name}</h1>
-              <Badge variant={client.is_active ? 'default' : 'secondary'}>
-                {client.is_active ? 'Active' : 'Inactive'}
-              </Badge>
+              {getStatusBadge(client.status)}
             </div>
             <p className='text-xs text-muted-foreground md:text-base'>
               Client Details

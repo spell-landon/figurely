@@ -38,12 +38,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response("Invoice not found", { status: 404 });
   }
 
-  // Get active clients for dropdown
+  // Get active clients for dropdown (lead, prospect, active, on_hold)
   const { data: clients } = await supabase
     .from("clients")
     .select("*")
     .eq("user_id", session.user.id)
-    .eq("is_active", true)
+    .in("status", ['lead', 'prospect', 'active', 'on_hold'])
     .order("name", { ascending: true });
 
   return json({

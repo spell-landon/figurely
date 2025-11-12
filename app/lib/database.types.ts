@@ -380,6 +380,7 @@ export interface Database {
           contact_person: string | null
           tax_id: string | null
           notes: string | null
+          status: string
           is_active: boolean
         }
         Insert: {
@@ -401,6 +402,7 @@ export interface Database {
           contact_person?: string | null
           tax_id?: string | null
           notes?: string | null
+          status?: string
           is_active?: boolean
         }
         Update: {
@@ -422,6 +424,7 @@ export interface Database {
           contact_person?: string | null
           tax_id?: string | null
           notes?: string | null
+          status?: string
           is_active?: boolean
         }
       }

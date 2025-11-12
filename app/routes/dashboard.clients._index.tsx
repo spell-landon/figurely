@@ -6,10 +6,7 @@ import {
 import { Link, useLoaderData, useSearchParams } from '@remix-run/react';
 import { Plus, Eye, Edit, Mail, Phone, MapPin } from 'lucide-react';
 import { Button } from '~/components/ui/button';
-import {
-  Card,
-  CardContent,
-} from '~/components/ui/card';
+import { Card, CardContent } from '~/components/ui/card';
 import { Badge } from '~/components/ui/badge';
 import { requireAuth } from '~/lib/auth.server';
 import { Pagination } from '~/components/pagination';
@@ -27,6 +24,20 @@ export const meta: MetaFunction = () => {
     { name: 'description', content: 'Manage your clients' },
   ];
 };
+
+function getStatusBadge(status: string) {
+  const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' }> = {
+    lead: { label: 'Lead', variant: 'secondary' },
+    prospect: { label: 'Prospect', variant: 'outline' },
+    active: { label: 'Active', variant: 'success' },
+    on_hold: { label: 'On Hold', variant: 'secondary' },
+    inactive: { label: 'Inactive', variant: 'destructive' },
+    archived: { label: 'Archived', variant: 'outline' },
+  };
+
+  const config = statusConfig[status] || { label: 'Active', variant: 'default' as const };
+  return <Badge variant={config.variant}>{config.label}</Badge>;
+}
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, supabase, headers } = await requireAuth(request);
@@ -46,7 +57,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     .from('clients')
     .select('*', { count: 'exact' })
     .eq('user_id', session.user.id)
-    .eq('is_active', true)
     .order('created_at', { ascending: false });
 
   // Apply search if provided
@@ -160,9 +170,9 @@ export default function ClientsIndex() {
                           </p>
                         )}
                       </div>
-                      <Badge variant='default' className='ml-2'>
-                        Active
-                      </Badge>
+                      <div className='ml-2'>
+                        {getStatusBadge(client.status)}
+                      </div>
                     </div>
                     <div className='space-y-1.5'>
                       {client.email && (
@@ -214,7 +224,7 @@ export default function ClientsIndex() {
 
           {/* Desktop Table View */}
           <Card className='hidden md:block'>
-            <CardContent className='p-0'>
+            <CardContent className='p-0 md:p-0'>
               <div className='overflow-x-auto'>
                 <table className='w-full'>
                   <thead className='border-b bg-muted/50'>
@@ -269,7 +279,7 @@ export default function ClientsIndex() {
                             : client.city || client.state || '—'}
                         </td>
                         <td className='px-6 py-4'>
-                          <Badge variant='default'>Active</Badge>
+                          {getStatusBadge(client.status)}
                         </td>
                         <td className='px-6 py-4 text-right'>
                           <div className='flex items-center justify-end gap-2'>
