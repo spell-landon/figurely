@@ -80,6 +80,7 @@ export async function action({ request }: ActionFunctionArgs) {
     is_return: isReturn,
     original_expense_id: isReturn && originalExpenseId ? originalExpenseId : null,
   };
+  // Note: deductible_amount is a generated column in the database and is calculated automatically
 
   const { data, error } = await supabase
     .from("expenses")

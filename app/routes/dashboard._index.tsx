@@ -192,7 +192,7 @@ export default function DashboardIndex() {
             </CardTitle>
             <DollarSign className='h-4 w-4 text-muted-foreground' />
           </CardHeader>
-          <CardContent>
+          <CardContent className='pt-0 md:pt-0'>
             <div className='text-2xl font-bold'>
               $
               <AnimatedCounter
@@ -230,7 +230,7 @@ export default function DashboardIndex() {
             </CardTitle>
             <Receipt className='h-4 w-4 text-muted-foreground' />
           </CardHeader>
-          <CardContent>
+          <CardContent className='pt-0 md:pt-0'>
             <div className='text-2xl font-bold'>
               $
               <AnimatedCounter
@@ -276,7 +276,7 @@ export default function DashboardIndex() {
             </CardTitle>
             <BarChart3 className='h-4 w-4 text-muted-foreground' />
           </CardHeader>
-          <CardContent>
+          <CardContent className='pt-0 md:pt-0'>
             <div
               className={`text-2xl font-bold ${
                 stats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'
@@ -301,7 +301,7 @@ export default function DashboardIndex() {
             </CardTitle>
             <AlertCircle className='h-4 w-4 text-muted-foreground' />
           </CardHeader>
-          <CardContent>
+          <CardContent className='pt-0 md:pt-0'>
             <div className='text-2xl font-bold'>
               <AnimatedCounter value={stats.unpaidInvoices} />
             </div>
@@ -320,7 +320,7 @@ export default function DashboardIndex() {
               Total Invoices
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='pt-0 md:pt-0'>
             <div className='text-lg md:text-2xl font-bold'>
               <AnimatedCounter value={stats.totalInvoices} />
             </div>
@@ -333,7 +333,7 @@ export default function DashboardIndex() {
               Total Income
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='pt-0 md:pt-0'>
             <div className='text-lg md:text-2xl font-bold'>
               $
               <AnimatedCounter
@@ -351,7 +351,7 @@ export default function DashboardIndex() {
               Total Expenses
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='pt-0 md:pt-0'>
             <div className='text-lg md:text-2xl font-bold'>
               $
               <AnimatedCounter
@@ -378,7 +378,7 @@ export default function DashboardIndex() {
               </Link>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className='pt-0 md:pt-0'>
             {recentInvoices.length === 0 ? (
               <div className='flex flex-col items-center justify-center py-8 text-center'>
                 <FileText className='h-12 w-12 text-muted-foreground' />
@@ -398,7 +398,7 @@ export default function DashboardIndex() {
                   <Link
                     key={invoice.id}
                     to={`/dashboard/invoices/${invoice.id}`}
-                    className='flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50'>
+                    className='flex items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/50'>
                     <div className='flex-1 min-w-0'>
                       <p className='font-medium truncate'>
                         {invoice.invoice_number}
@@ -407,7 +407,7 @@ export default function DashboardIndex() {
                         {invoice.bill_to_name || 'No client'}
                       </p>
                     </div>
-                    <div className='flex items-center gap-3 ml-2'>
+                    <div className='flex items-center gap-2'>
                       <div className='text-right'>
                         <p className='font-semibold'>
                           $
@@ -439,7 +439,7 @@ export default function DashboardIndex() {
               </Link>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className='pt-0 md:pt-0'>
             {recentExpenses.length === 0 ? (
               <div className='flex flex-col items-center justify-center py-8 text-center'>
                 <Receipt className='h-12 w-12 text-muted-foreground' />
@@ -459,17 +459,20 @@ export default function DashboardIndex() {
                   <Link
                     key={expense.id}
                     to={`/dashboard/expenses/${expense.id}`}
-                    className='flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50'>
+                    className='flex items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/50'>
                     <div className='flex-1 min-w-0'>
-                      <p className='font-medium truncate'>
+                      <p className='font-medium text-wrap truncate line-clamp-1'>
                         {expense.description}
                       </p>
                       <p className='text-xs text-muted-foreground'>
                         {new Date(expense.date).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className='text-right ml-2'>
-                      <p className='font-semibold'>
+                    <div className='text-right'>
+                      <p
+                        className={`font-semibold ${
+                          expense.total >= 0 ? 'text-red-600' : 'text-green-600'
+                        }`}>
                         $
                         <AnimatedCounter
                           value={expense.total}
@@ -495,7 +498,7 @@ export default function DashboardIndex() {
           <CardTitle>Quick Actions</CardTitle>
           <CardDescription>Get started with common tasks</CardDescription>
         </CardHeader>
-        <CardContent className='grid gap-2 md:grid-cols-3'>
+        <CardContent className='pt-0 md:pt-0 grid gap-2 md:grid-cols-3'>
           <Link to='/dashboard/invoices/new'>
             <Button className='w-full justify-start' variant='outline'>
               <Plus className='mr-2 h-4 w-4' />

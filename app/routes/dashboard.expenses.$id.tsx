@@ -222,6 +222,43 @@ export default function ExpenseDetail() {
           </CardContent>
         </Card>
 
+        {/* Tax Information */}
+        {expense.is_tax_deductible && (
+          <Card>
+            <CardContent className="p-6">
+              <h2 className="mb-4 text-lg font-semibold">Tax Information</h2>
+
+              <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Tax Deductible</p>
+                    <p className="font-medium text-green-600">Yes</p>
+                  </div>
+
+                  {expense.tax_category && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Tax Category</p>
+                      <p className="font-medium">{formatCategory(expense.tax_category)}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Business Use</p>
+                    <p className="font-medium">{expense.business_use_percentage}%</p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-muted-foreground">Deductible Amount</p>
+                    <p className="text-xl font-bold text-blue-600">${formatCurrency(expense.deductible_amount)}</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Receipt */}
         <Card>
           <CardContent className="p-6">
