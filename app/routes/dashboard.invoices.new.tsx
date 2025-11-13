@@ -1,6 +1,6 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
 import { Form, useActionData, useLoaderData, useNavigation, Link } from "@remix-run/react";
-import { Plus, Trash2, Save, Layers } from "lucide-react";
+import { Plus, Trash2, Save, Layers, ArrowLeft } from "lucide-react";
 import { useState, useRef } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
@@ -278,14 +278,19 @@ export default function NewInvoice() {
       />
 
       <div className="container mx-auto space-y-4 p-4 md:space-y-6 md:p-6">
-        <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Create New Invoice</h1>
-          <p className="text-muted-foreground">
-            Fill in the details to create your invoice
-          </p>
+        <div className="flex items-center gap-4">
+          <Link to="/dashboard/invoices">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">Create New Invoice</h1>
+            <p className="text-muted-foreground">
+              Fill in the details to create your invoice
+            </p>
+          </div>
         </div>
-      </div>
 
       <Form method="post" className="space-y-6" ref={formRef}>
         {actionData?.error && (

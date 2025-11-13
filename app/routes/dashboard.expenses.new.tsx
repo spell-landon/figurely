@@ -1,6 +1,6 @@
 import { json, redirect, unstable_createMemoryUploadHandler, unstable_parseMultipartFormData, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
-import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
-import { Save, Upload, X } from "lucide-react";
+import { Form, useActionData, useLoaderData, useNavigation, Link } from "@remix-run/react";
+import { Save, Upload, X, ArrowLeft } from "lucide-react";
 import { useState, useRef } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
@@ -158,14 +158,19 @@ export default function NewExpense() {
       />
 
       <div className="container mx-auto space-y-6 p-4 md:p-6">
-        <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold md:text-3xl">Add New Expense</h1>
-          <p className="text-sm text-muted-foreground md:text-base">
-            Track a business expense
-          </p>
+        <div className="flex items-center gap-4">
+          <Link to="/dashboard/expenses">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold md:text-3xl">Add New Expense</h1>
+            <p className="text-sm text-muted-foreground md:text-base">
+              Track a business expense
+            </p>
+          </div>
         </div>
-      </div>
 
       <Form method="post" encType="multipart/form-data" className="space-y-6" ref={formRef}>
         {actionData?.error && (
