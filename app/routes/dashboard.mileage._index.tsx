@@ -132,7 +132,7 @@ export default function MileageIndex() {
       </div>
 
       {/* Stats */}
-      <div className='grid gap-4 md:grid-cols-3'>
+      <div className='grid gap-4 grid-cols-3'>
         <Card>
           <CardContent className='p-4 md:p-6 md:pt-6'>
             <div className='flex items-center gap-2 mb-2'>
@@ -148,7 +148,7 @@ export default function MileageIndex() {
         </Card>
         <Card>
           <CardContent className='p-4 md:p-6 md:pt-6'>
-            <div className='text-sm font-medium text-muted-foreground'>
+            <div className='text-sm font-medium text-muted-foreground mb-2'>
               Total Deduction
             </div>
             <div className='text-2xl font-bold md:text-3xl'>
@@ -158,7 +158,7 @@ export default function MileageIndex() {
         </Card>
         <Card>
           <CardContent className='p-4 md:p-6 md:pt-6'>
-            <div className='text-sm font-medium text-muted-foreground'>
+            <div className='text-sm font-medium text-muted-foreground mb-2'>
               This Month
             </div>
             <div className='text-2xl font-bold md:text-3xl'>
@@ -171,7 +171,7 @@ export default function MileageIndex() {
       {/* Mileage List */}
       {mileage.length === 0 ? (
         <Card>
-          <CardContent className='flex flex-col items-center justify-center py-12'>
+          <CardContent className='flex flex-col items-center justify-center py-12 md:pt-6'>
             <div className='flex h-20 w-20 items-center justify-center rounded-full bg-muted'>
               <Car className='h-10 w-10 text-muted-foreground' />
             </div>

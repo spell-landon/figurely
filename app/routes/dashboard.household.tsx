@@ -1,10 +1,14 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
 import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { Save, Home, Calculator } from "lucide-react";
+import { useRef } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { FieldLabel } from "~/components/ui/field-label";
+import { FormSaveBar } from "~/components/ui/form-save-bar";
+import { useFormDirtyState } from "~/hooks/useFormDirtyState";
+import { useNavigationBlocker } from "~/hooks/useNavigationBlocker";
 import { requireAuth } from "~/lib/auth.server";
 import { formatCurrency } from "~/lib/utils";
 
@@ -96,10 +100,39 @@ export default function HouseholdSettings() {
     : 0;
   const totalEstimatedDeduction = estimatedRent + estimatedUtilities + estimatedInternet;
 
+  // Form state management
+  const formRef = useRef<HTMLFormElement>(null);
+  const { isDirty, resetDirty } = useFormDirtyState(formRef);
+  const { blocker } = useNavigationBlocker(isDirty);
+
+  // Save handler - trigger form submission
+  const handleSave = () => {
+    if (formRef.current) {
+      formRef.current.requestSubmit();
+    }
+  };
+
+  // Discard handler - reset form to initial state
+  const handleDiscard = () => {
+    if (formRef.current) {
+      formRef.current.reset();
+      resetDirty();
+    }
+  };
+
   return (
-    <div className="container mx-auto space-y-6 p-4 md:p-6">
-      {/* Success/Error Messages */}
-      {actionData?.success && (
+    <>
+      <FormSaveBar
+        isDirty={isDirty}
+        isSubmitting={isSubmitting}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        blocker={blocker}
+      />
+
+      <div className="container mx-auto space-y-6 p-4 md:p-6">
+        {/* Success/Error Messages */}
+        {actionData?.success && (
         <div className="rounded-md bg-green-50 p-3 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-300">
           {actionData.message}
         </div>
@@ -118,7 +151,7 @@ export default function HouseholdSettings() {
         </p>
       </div>
 
-      <Form method="post" className="space-y-6">
+      <Form method="post" className="space-y-6" ref={formRef}>
         {/* Home Office Details */}
         <Card>
           <CardHeader>
@@ -322,14 +355,8 @@ export default function HouseholdSettings() {
             )}
           </CardContent>
         </Card>
-
-        <div className="flex items-center justify-end">
-          <Button type="submit" disabled={isSubmitting}>
-            <Save className="mr-2 h-4 w-4" />
-            {isSubmitting ? "Saving..." : "Save Settings"}
-          </Button>
-        </div>
       </Form>
-    </div>
+      </div>
+    </>
   );
 }

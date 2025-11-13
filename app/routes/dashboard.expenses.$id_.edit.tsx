@@ -10,7 +10,10 @@ import { Select } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
 import { requireAuth } from "~/lib/auth.server";
 import { formatDate } from "~/lib/utils";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { FormSaveBar } from "~/components/ui/form-save-bar";
+import { useFormDirtyState } from "~/hooks/useFormDirtyState";
+import { useNavigationBlocker } from "~/hooks/useNavigationBlocker";
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
@@ -139,6 +142,29 @@ export default function EditExpense() {
   const [isReturn, setIsReturn] = useState(expense.is_return || false);
   const [selectedOriginalExpense, setSelectedOriginalExpense] = useState<string>(expense.original_expense_id || "");
 
+  // Form state management - track file selection and return state as dependencies
+  const formRef = useRef<HTMLFormElement>(null);
+  const { isDirty, resetDirty } = useFormDirtyState(formRef, [selectedFile, isReturn, selectedOriginalExpense]);
+  const { blocker } = useNavigationBlocker(isDirty);
+
+  // Save handler - trigger form submission
+  const handleSave = () => {
+    if (formRef.current) {
+      formRef.current.requestSubmit();
+    }
+  };
+
+  // Discard handler - reset form and controlled state to initial values
+  const handleDiscard = () => {
+    if (formRef.current) {
+      formRef.current.reset();
+      setSelectedFile(null);
+      setIsReturn(expense.is_return || false);
+      setSelectedOriginalExpense(expense.original_expense_id || "");
+      resetDirty();
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -155,8 +181,17 @@ export default function EditExpense() {
   };
 
   return (
-    <div className="container mx-auto space-y-6 p-4 md:p-6">
-      <div className="flex items-center gap-4">
+    <>
+      <FormSaveBar
+        isDirty={isDirty}
+        isSubmitting={isSubmitting}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        blocker={blocker}
+      />
+
+      <div className="container mx-auto space-y-6 p-4 md:p-6">
+        <div className="flex items-center gap-4">
         <Link to={`/dashboard/expenses/${expense.id}`}>
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
@@ -170,7 +205,7 @@ export default function EditExpense() {
         </div>
       </div>
 
-      <Form method="post" encType="multipart/form-data" className="space-y-6">
+      <Form method="post" encType="multipart/form-data" className="space-y-6" ref={formRef}>
         {actionData?.error && (
           <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
             {actionData.error}
@@ -448,20 +483,8 @@ export default function EditExpense() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-4">
-          <Link to={`/dashboard/expenses/${expense.id}`}>
-            <Button type="button" variant="outline" disabled={isSubmitting}>
-              Cancel
-            </Button>
-          </Link>
-          <Button type="submit" disabled={isSubmitting}>
-            <Save className="mr-2 h-4 w-4" />
-            {isSubmitting ? "Saving..." : "Save Changes"}
-          </Button>
-        </div>
       </Form>
-    </div>
+      </div>
+    </>
   );
 }

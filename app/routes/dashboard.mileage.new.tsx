@@ -1,11 +1,15 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
 import { Form, useActionData, useNavigation, Link } from "@remix-run/react";
 import { Save, ArrowLeft } from "lucide-react";
+import { useRef } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { FieldLabel } from "~/components/ui/field-label";
 import { Textarea } from "~/components/ui/textarea";
+import { FormSaveBar } from "~/components/ui/form-save-bar";
+import { useFormDirtyState } from "~/hooks/useFormDirtyState";
+import { useNavigationBlocker } from "~/hooks/useNavigationBlocker";
 import { requireAuth } from "~/lib/auth.server";
 
 export const meta: MetaFunction = () => {
@@ -61,9 +65,38 @@ export default function NewMileage() {
   const today = new Date().toISOString().split("T")[0];
   const IRS_STANDARD_RATE = 0.67; // 2024 IRS standard mileage rate
 
+  // Form state management
+  const formRef = useRef<HTMLFormElement>(null);
+  const { isDirty, resetDirty } = useFormDirtyState(formRef);
+  const { blocker } = useNavigationBlocker(isDirty);
+
+  // Save handler - trigger form submission
+  const handleSave = () => {
+    if (formRef.current) {
+      formRef.current.requestSubmit();
+    }
+  };
+
+  // Discard handler - reset form to initial state
+  const handleDiscard = () => {
+    if (formRef.current) {
+      formRef.current.reset();
+      resetDirty();
+    }
+  };
+
   return (
-    <div className="container mx-auto space-y-6 p-4 md:p-6">
-      <div className="flex items-center gap-4">
+    <>
+      <FormSaveBar
+        isDirty={isDirty}
+        isSubmitting={isSubmitting}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        blocker={blocker}
+      />
+
+      <div className="container mx-auto space-y-6 p-4 md:p-6">
+        <div className="flex items-center gap-4">
         <Link to="/dashboard/mileage">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
@@ -77,7 +110,7 @@ export default function NewMileage() {
         </div>
       </div>
 
-      <Form method="post" className="space-y-6">
+      <Form method="post" className="space-y-6" ref={formRef}>
         {actionData?.error && (
           <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
             {actionData.error}
@@ -163,19 +196,8 @@ export default function NewMileage() {
             </div>
           </CardContent>
         </Card>
-
-        <div className="flex items-center justify-end gap-4">
-          <Link to="/dashboard/mileage">
-            <Button type="button" variant="outline" disabled={isSubmitting}>
-              Cancel
-            </Button>
-          </Link>
-          <Button type="submit" disabled={isSubmitting}>
-            <Save className="mr-2 h-4 w-4" />
-            {isSubmitting ? "Saving..." : "Save Mileage"}
-          </Button>
-        </div>
       </Form>
-    </div>
+      </div>
+    </>
   );
 }

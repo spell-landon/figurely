@@ -1,11 +1,15 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
 import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { Save, Building2, FileText, Mail } from "lucide-react";
+import { useRef } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { FieldLabel } from "~/components/ui/field-label";
 import { Textarea } from "~/components/ui/textarea";
+import { FormSaveBar } from "~/components/ui/form-save-bar";
+import { useFormDirtyState } from "~/hooks/useFormDirtyState";
+import { useNavigationBlocker } from "~/hooks/useNavigationBlocker";
 import { requireAuth } from "~/lib/auth.server";
 
 export const meta: MetaFunction = () => {
@@ -87,10 +91,39 @@ export default function Settings() {
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
+  // Form state management
+  const formRef = useRef<HTMLFormElement>(null);
+  const { isDirty, resetDirty } = useFormDirtyState(formRef);
+  const { blocker } = useNavigationBlocker(isDirty);
+
+  // Save handler - trigger form submission
+  const handleSave = () => {
+    if (formRef.current) {
+      formRef.current.requestSubmit();
+    }
+  };
+
+  // Discard handler - reset form to initial state
+  const handleDiscard = () => {
+    if (formRef.current) {
+      formRef.current.reset();
+      resetDirty();
+    }
+  };
+
   return (
-    <div className="container mx-auto space-y-4 p-4 md:space-y-6 md:p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <>
+      <FormSaveBar
+        isDirty={isDirty}
+        isSubmitting={isSubmitting}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        blocker={blocker}
+      />
+
+      <div className="container mx-auto space-y-4 p-4 md:space-y-6 md:p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Settings</h1>
           <p className="text-muted-foreground">
@@ -99,7 +132,7 @@ export default function Settings() {
         </div>
       </div>
 
-      <Form method="post" className="space-y-6">
+      <Form method="post" className="space-y-6" ref={formRef}>
         {/* Success Message */}
         {actionData?.success && (
           <div className="rounded-md bg-green-50 p-3 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-300">
@@ -283,15 +316,8 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <Button type="submit" disabled={isSubmitting}>
-            <Save className="mr-2 h-4 w-4" />
-            {isSubmitting ? "Saving..." : "Save Settings"}
-          </Button>
-        </div>
       </Form>
-    </div>
+      </div>
+    </>
   );
 }

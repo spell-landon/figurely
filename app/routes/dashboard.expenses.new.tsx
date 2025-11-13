@@ -1,6 +1,7 @@
 import { json, redirect, unstable_createMemoryUploadHandler, unstable_parseMultipartFormData, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
 import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { Save, Upload, X } from "lucide-react";
+import { useState, useRef } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
@@ -8,9 +9,11 @@ import { Label } from "~/components/ui/label";
 import { FieldLabel } from "~/components/ui/field-label";
 import { Select } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
+import { FormSaveBar } from "~/components/ui/form-save-bar";
+import { useFormDirtyState } from "~/hooks/useFormDirtyState";
+import { useNavigationBlocker } from "~/hooks/useNavigationBlocker";
 import { requireAuth } from "~/lib/auth.server";
 import { formatDate } from "~/lib/utils";
-import { useState } from "react";
 
 export const meta: MetaFunction = () => {
   return [
@@ -106,6 +109,29 @@ export default function NewExpense() {
 
   const today = new Date().toISOString().split("T")[0];
 
+  // Form state management - track file selection and return state as dependencies
+  const formRef = useRef<HTMLFormElement>(null);
+  const { isDirty, resetDirty } = useFormDirtyState(formRef, [selectedFile, isReturn, selectedOriginalExpense]);
+  const { blocker } = useNavigationBlocker(isDirty);
+
+  // Save handler - trigger form submission
+  const handleSave = () => {
+    if (formRef.current) {
+      formRef.current.requestSubmit();
+    }
+  };
+
+  // Discard handler - reset form and controlled state to initial values
+  const handleDiscard = () => {
+    if (formRef.current) {
+      formRef.current.reset();
+      setSelectedFile(null);
+      setIsReturn(false);
+      setSelectedOriginalExpense("");
+      resetDirty();
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -122,8 +148,17 @@ export default function NewExpense() {
   };
 
   return (
-    <div className="container mx-auto space-y-6 p-4 md:p-6">
-      <div className="flex items-center justify-between">
+    <>
+      <FormSaveBar
+        isDirty={isDirty}
+        isSubmitting={isSubmitting}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        blocker={blocker}
+      />
+
+      <div className="container mx-auto space-y-6 p-4 md:p-6">
+        <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold md:text-3xl">Add New Expense</h1>
           <p className="text-sm text-muted-foreground md:text-base">
@@ -132,7 +167,7 @@ export default function NewExpense() {
         </div>
       </div>
 
-      <Form method="post" encType="multipart/form-data" className="space-y-6">
+      <Form method="post" encType="multipart/form-data" className="space-y-6" ref={formRef}>
         {actionData?.error && (
           <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
             {actionData.error}
@@ -379,18 +414,8 @@ export default function NewExpense() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Actions */}
-        <div className="flex flex-col gap-4 md:flex-row md:justify-end">
-          <Button type="button" variant="outline" disabled={isSubmitting} className="w-full md:w-auto">
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting} className="w-full md:w-auto">
-            <Save className="mr-2 h-4 w-4" />
-            {isSubmitting ? "Saving..." : "Save Expense"}
-          </Button>
-        </div>
       </Form>
-    </div>
+      </div>
+    </>
   );
 }

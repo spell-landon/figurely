@@ -8,12 +8,16 @@ import {
 import { Form, useActionData, useLoaderData, useNavigation } from '@remix-run/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from '@remix-run/react';
+import { useRef } from 'react';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { Select } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
+import { FormSaveBar } from '~/components/ui/form-save-bar';
+import { useFormDirtyState } from '~/hooks/useFormDirtyState';
+import { useNavigationBlocker } from '~/hooks/useNavigationBlocker';
 import { requireAuth } from '~/lib/auth.server';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
@@ -93,10 +97,39 @@ export default function EditClient() {
   const navigation = useNavigation();
   const isSubmitting = navigation.state === 'submitting';
 
+  // Form state management
+  const formRef = useRef<HTMLFormElement>(null);
+  const { isDirty, resetDirty } = useFormDirtyState(formRef);
+  const { blocker } = useNavigationBlocker(isDirty);
+
+  // Save handler - trigger form submission
+  const handleSave = () => {
+    if (formRef.current) {
+      formRef.current.requestSubmit();
+    }
+  };
+
+  // Discard handler - reset form to initial state
+  const handleDiscard = () => {
+    if (formRef.current) {
+      formRef.current.reset();
+      resetDirty();
+    }
+  };
+
   return (
-    <div className='container mx-auto space-y-4 p-4 md:space-y-6 md:p-6'>
-      {/* Header */}
-      <div className='flex items-center gap-3 md:gap-4'>
+    <>
+      <FormSaveBar
+        isDirty={isDirty}
+        isSubmitting={isSubmitting}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        blocker={blocker}
+      />
+
+      <div className='container mx-auto space-y-4 p-4 md:space-y-6 md:p-6'>
+        {/* Header */}
+        <div className='flex items-center gap-3 md:gap-4'>
         <Link to={`/dashboard/clients/${client.id}`}>
           <Button variant='ghost' size='icon'>
             <ArrowLeft className='h-5 w-5' />
@@ -118,7 +151,7 @@ export default function EditClient() {
         </Card>
       )}
 
-      <Form method='post'>
+      <Form method='post' ref={formRef}>
         <div className='grid gap-4 md:gap-6'>
           {/* Basic Information */}
           <Card>
@@ -330,20 +363,9 @@ export default function EditClient() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Actions */}
-          <div className='flex flex-col gap-3 md:flex-row md:justify-end'>
-            <Link to={`/dashboard/clients/${client.id}`} className='md:order-1'>
-              <Button type='button' variant='outline' className='w-full md:w-auto'>
-                Cancel
-              </Button>
-            </Link>
-            <Button type='submit' disabled={isSubmitting} className='w-full md:order-2 md:w-auto'>
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
         </div>
       </Form>
-    </div>
+      </div>
+    </>
   );
 }
