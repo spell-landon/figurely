@@ -8,9 +8,10 @@ import { Select } from "~/components/ui/select";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { FieldLabel } from "~/components/ui/field-label";
+import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { requireAuth } from "~/lib/auth.server";
 import { formatCurrency } from "~/lib/utils";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { sendInvoiceEmail } from "~/lib/email.server";
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
@@ -198,6 +199,10 @@ export default function InvoiceDetail() {
   const isSendingEmail = navigation.state === "submitting" && navigation.formData?.get("intent") === "send_email";
   const isUpdatingPayment = navigation.state === "submitting" && navigation.formData?.get("intent") === "update_payment";
   const [linkCopied, setLinkCopied] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const deleteFormRef = useRef<HTMLFormElement>(null);
+  const emailFormRef = useRef<HTMLFormElement>(null);
 
   // Parse line items
   const lineItems = Array.isArray(invoice.line_items) ? invoice.line_items : [];
@@ -252,13 +257,14 @@ export default function InvoiceDetail() {
             </Button>
           </Link>
 
-          <Form method="post">
+          <Form method="post" ref={emailFormRef}>
             <input type="hidden" name="intent" value="send_email" />
             <Button
-              type="submit"
+              type="button"
               variant="outline"
               size="sm"
               disabled={isSendingEmail || !invoice.bill_to_email}
+              onClick={() => setShowEmailDialog(true)}
             >
               <Mail className="mr-2 h-4 w-4" />
               {isSendingEmail ? "Sending..." : "Email"}
@@ -311,13 +317,14 @@ export default function InvoiceDetail() {
             </Select>
           </Form>
 
-          <Form method="post">
+          <Form method="post" ref={deleteFormRef}>
             <input type="hidden" name="intent" value="delete" />
             <Button
-              type="submit"
+              type="button"
               variant="outline"
               size="sm"
               disabled={isDeleting}
+              onClick={() => setShowDeleteDialog(true)}
             >
               <Trash2 className="mr-2 h-4 w-4" />
               {isDeleting ? "Deleting..." : "Delete"}
@@ -511,6 +518,38 @@ export default function InvoiceDetail() {
           </Form>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={() => {
+          deleteFormRef.current?.requestSubmit();
+          setShowDeleteDialog(false);
+        }}
+        title="Delete Invoice"
+        description={`Are you sure you want to delete invoice ${invoice.invoice_number}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+      />
+
+      {/* Send Email Confirmation Dialog */}
+      <ConfirmDialog
+        open={showEmailDialog}
+        onOpenChange={setShowEmailDialog}
+        onConfirm={() => {
+          emailFormRef.current?.requestSubmit();
+          setShowEmailDialog(false);
+        }}
+        title="Send Invoice Email"
+        description={`Send invoice ${invoice.invoice_number} to ${invoice.bill_to_email}? The invoice status will be automatically updated to "Sent".`}
+        confirmText="Send Email"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={isSendingEmail}
+      />
     </div>
   );
 }

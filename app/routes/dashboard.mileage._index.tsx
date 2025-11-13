@@ -12,6 +12,7 @@ import {
   useNavigation,
 } from '@remix-run/react';
 import { Plus, Search, Trash2, Edit, Car } from 'lucide-react';
+import { useState, useRef } from 'react';
 import { Button } from '~/components/ui/button';
 import {
   Card,
@@ -21,6 +22,7 @@ import {
   CardDescription,
 } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { requireAuth } from '~/lib/auth.server';
 import { formatCurrency } from '~/lib/utils';
 
@@ -78,6 +80,9 @@ export default function MileageIndex() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isDeleting = navigation.state === 'submitting';
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<any>(null);
+  const deleteFormRef = useRef<HTMLFormElement>(null);
 
   // Calculate totals
   const totalMiles = mileage.reduce(
@@ -226,18 +231,18 @@ export default function MileageIndex() {
                         Edit
                       </Button>
                     </Link>
-                    <Form method='post'>
-                      <input type='hidden' name='intent' value='delete' />
-                      <input type='hidden' name='id' value={record.id} />
-                      <Button
-                        type='submit'
-                        variant='ghost'
-                        size='sm'
-                        disabled={isDeleting}>
-                        <Trash2 className='h-4 w-4 mr-1' />
-                        {isDeleting ? '...' : 'Delete'}
-                      </Button>
-                    </Form>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='sm'
+                      disabled={isDeleting}
+                      onClick={() => {
+                        setRecordToDelete(record);
+                        setDeleteDialogOpen(true);
+                      }}>
+                      <Trash2 className='h-4 w-4 mr-1' />
+                      {isDeleting ? '...' : 'Delete'}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -305,26 +310,18 @@ export default function MileageIndex() {
                                 <Edit className='h-4 w-4' />
                               </Button>
                             </Link>
-                            <Form method='post'>
-                              <input
-                                type='hidden'
-                                name='intent'
-                                value='delete'
-                              />
-                              <input
-                                type='hidden'
-                                name='id'
-                                value={record.id}
-                              />
-                              <Button
-                                type='submit'
-                                variant='ghost'
-                                size='icon'
-                                title='Delete'
-                                disabled={isDeleting}>
-                                <Trash2 className='h-4 w-4' />
-                              </Button>
-                            </Form>
+                            <Button
+                              type='button'
+                              variant='ghost'
+                              size='icon'
+                              title='Delete'
+                              disabled={isDeleting}
+                              onClick={() => {
+                                setRecordToDelete(record);
+                                setDeleteDialogOpen(true);
+                              }}>
+                              <Trash2 className='h-4 w-4' />
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -336,6 +333,28 @@ export default function MileageIndex() {
           </Card>
         </>
       )}
+
+      {/* Hidden form for delete submission */}
+      <Form method='post' ref={deleteFormRef} style={{ display: 'none' }}>
+        <input type='hidden' name='intent' value='delete' />
+        <input type='hidden' name='id' value={recordToDelete?.id || ''} />
+      </Form>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={() => {
+          deleteFormRef.current?.requestSubmit();
+          setDeleteDialogOpen(false);
+        }}
+        title='Delete Mileage Record'
+        description={`Are you sure you want to delete the mileage record for "${recordToDelete?.purpose}"? This action cannot be undone.`}
+        confirmText='Delete'
+        cancelText='Cancel'
+        variant='danger'
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

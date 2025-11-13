@@ -3,8 +3,10 @@ import { Link, useLoaderData, Form, useNavigation } from "@remix-run/react";
 import { ArrowLeft, Edit, Trash2, Download, FileText } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
+import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { requireAuth } from "~/lib/auth.server";
 import { formatCurrency, formatCategory, formatDate } from "~/lib/utils";
+import { useState, useRef } from "react";
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
@@ -123,6 +125,8 @@ export default function ExpenseDetail() {
   const { expense, originalExpense, relatedReturns } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const isDeleting = navigation.state === "submitting" && navigation.formData?.get("intent") === "delete";
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const deleteFormRef = useRef<HTMLFormElement>(null);
 
   // Calculate net total if there are related returns
   const netTotal = expense.total + (relatedReturns || []).reduce((sum, ret) => sum + ret.total, 0);
@@ -165,13 +169,14 @@ export default function ExpenseDetail() {
             </Button>
           </Link>
 
-          <Form method="post">
+          <Form method="post" ref={deleteFormRef}>
             <input type="hidden" name="intent" value="delete" />
             <Button
-              type="submit"
+              type="button"
               variant="outline"
               size="sm"
               disabled={isDeleting}
+              onClick={() => setShowDeleteDialog(true)}
             >
               <Trash2 className="mr-2 h-4 w-4" />
               {isDeleting ? "Deleting..." : "Delete"}
@@ -377,6 +382,22 @@ export default function ExpenseDetail() {
           </Card>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={() => {
+          deleteFormRef.current?.requestSubmit();
+          setShowDeleteDialog(false);
+        }}
+        title="Delete Expense"
+        description={`Are you sure you want to delete this expense "${expense.description}"? ${expense.receipt_url ? 'The associated receipt file will also be permanently deleted. ' : ''}This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

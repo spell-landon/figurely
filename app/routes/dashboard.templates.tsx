@@ -13,6 +13,7 @@ import {
   Link,
 } from '@remix-run/react';
 import { Plus, Edit, Trash2, Save, X, DollarSign } from 'lucide-react';
+import { useState, useRef } from 'react';
 import { Button } from '~/components/ui/button';
 import {
   Card,
@@ -23,13 +24,13 @@ import {
 } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { requireAuth } from '~/lib/auth.server';
 import { formatCurrency } from '~/lib/utils';
 import { Pagination } from '~/components/pagination';
 import { SearchInput } from '~/components/search-input';
 import { parsePaginationParams, getSupabaseRange } from '~/lib/pagination';
 import { parseSearchParams, buildSupabaseSearchQuery } from '~/lib/search';
-import { useState } from 'react';
 
 export const meta: MetaFunction = () => {
   return [
@@ -172,6 +173,9 @@ export default function Templates() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === 'submitting';
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<any>(null);
+  const deleteFormRef = useRef<HTMLFormElement>(null);
   const [searchParams] = useSearchParams();
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -476,19 +480,19 @@ export default function Templates() {
                         <Edit className='mr-1 h-3 w-3' />
                         Edit
                       </Button>
-                      <Form method='post' className='flex-1'>
-                        <input type='hidden' name='intent' value='delete' />
-                        <input type='hidden' name='id' value={template.id} />
-                        <Button
-                          type='submit'
-                          size='sm'
-                          variant='ghost'
-                          className='w-full'
-                          disabled={isSubmitting}>
-                          <Trash2 className='mr-1 h-3 w-3' />
-                          Delete
-                        </Button>
-                      </Form>
+                      <Button
+                        type='button'
+                        size='sm'
+                        variant='ghost'
+                        className='flex-1'
+                        disabled={isSubmitting}
+                        onClick={() => {
+                          setTemplateToDelete(template);
+                          setDeleteDialogOpen(true);
+                        }}>
+                        <Trash2 className='mr-1 h-3 w-3' />
+                        Delete
+                      </Button>
                     </div>
                   </CardContent>
                 )}
@@ -558,26 +562,18 @@ export default function Templates() {
                               onClick={() => setEditingId(template.id)}>
                               <Edit className='h-4 w-4' />
                             </Button>
-                            <Form method='post'>
-                              <input
-                                type='hidden'
-                                name='intent'
-                                value='delete'
-                              />
-                              <input
-                                type='hidden'
-                                name='id'
-                                value={template.id}
-                              />
-                              <Button
-                                type='submit'
-                                variant='ghost'
-                                size='icon'
-                                title='Delete'
-                                disabled={isSubmitting}>
-                                <Trash2 className='h-4 w-4' />
-                              </Button>
-                            </Form>
+                            <Button
+                              type='button'
+                              variant='ghost'
+                              size='icon'
+                              title='Delete'
+                              disabled={isSubmitting}
+                              onClick={() => {
+                                setTemplateToDelete(template);
+                                setDeleteDialogOpen(true);
+                              }}>
+                              <Trash2 className='h-4 w-4' />
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -710,6 +706,28 @@ export default function Templates() {
           )}
         </>
       )}
+
+      {/* Hidden form for delete submission */}
+      <Form method='post' ref={deleteFormRef} style={{ display: 'none' }}>
+        <input type='hidden' name='intent' value='delete' />
+        <input type='hidden' name='id' value={templateToDelete?.id || ''} />
+      </Form>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={() => {
+          deleteFormRef.current?.requestSubmit();
+          setDeleteDialogOpen(false);
+        }}
+        title='Delete Template'
+        description={`Are you sure you want to delete the template "${templateToDelete?.description}"? This action cannot be undone.`}
+        confirmText='Delete'
+        cancelText='Cancel'
+        variant='danger'
+        isLoading={isSubmitting}
+      />
     </div>
   );
 }
