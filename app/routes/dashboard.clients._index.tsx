@@ -1,6 +1,7 @@
 import {
   json,
   type LoaderFunctionArgs,
+  type ActionFunctionArgs,
   type MetaFunction,
 } from '@remix-run/node';
 import { Link, useLoaderData, useSearchParams } from '@remix-run/react';
@@ -17,6 +18,20 @@ import {
   DEFAULT_PAGE_SIZE,
 } from '~/lib/pagination';
 import { parseSearchParams, buildSupabaseSearchQuery } from '~/lib/search';
+import {
+  parseSortParams,
+  applySupabaseSorting,
+  clientColumnMap,
+} from '~/lib/sorting';
+import { parseFilterParams, applySupabaseFilters } from '~/lib/filtering';
+import {
+  encodeViewState,
+  decodeViewState,
+  extractViewState,
+} from '~/lib/views';
+import { FilterBar } from '~/components/filter-bar';
+import { SortMenu } from '~/components/sort-menu';
+import { SavedViewsMenu } from '~/components/saved-views-menu';
 
 export const meta: MetaFunction = () => {
   return [
@@ -52,12 +67,30 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Parse search params
   const { query } = parseSearchParams(searchParams);
 
+  // Parse sorting params
+  const sortParams = parseSortParams(searchParams, 'created_at', 'desc');
+
+  // Parse filter params
+  const filterParams = parseFilterParams(searchParams);
+
   // Build base query
   let clientsQuery = supabase
     .from('clients')
     .select('*', { count: 'exact' })
-    .eq('user_id', session.user.id)
-    .order('created_at', { ascending: false });
+    .eq('user_id', session.user.id);
+
+  // Apply sorting
+  clientsQuery = applySupabaseSorting(
+    clientsQuery,
+    sortParams.sortBy || 'created_at',
+    sortParams.sortOrder,
+    clientColumnMap
+  );
+
+  // Apply filters (status only)
+  clientsQuery = applySupabaseFilters(clientsQuery, filterParams, {
+    statusColumn: 'status',
+  });
 
   // Apply search if provided
   if (query) {
@@ -79,49 +112,162 @@ export async function loader({ request }: LoaderFunctionArgs) {
     throw new Error('Failed to load clients');
   }
 
+  // Fetch saved views for this table
+  const { data: savedViews } = await supabase
+    .from('saved_views')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .eq('table_name', 'clients')
+    .order('created_at', { ascending: false });
+
   return json(
     {
       clients: clients || [],
       totalCount: count || 0,
       currentPage: page,
       itemsPerPage: limit,
+      sortParams,
+      filterParams: { ...filterParams, search: query || undefined },
+      savedViews: savedViews || [],
     },
     { headers }
   );
 }
 
+export async function action({ request }: ActionFunctionArgs) {
+  const { session, supabase, headers } = await requireAuth(request);
+  const formData = await request.formData();
+  const intent = formData.get('intent');
+
+  if (intent === 'save_view') {
+    const viewName = formData.get('view_name') as string;
+    const tableName = formData.get('table_name') as string;
+    const viewState = formData.get('view_state') as string;
+
+    const { error } = await supabase.from('saved_views').insert({
+      user_id: session.user.id,
+      name: viewName,
+      table_name: tableName,
+      view_state: JSON.parse(viewState),
+    });
+
+    if (error) {
+      throw new Error('Failed to save view');
+    }
+
+    return json({ success: true }, { headers });
+  }
+
+  if (intent === 'delete_view') {
+    const viewId = formData.get('view_id') as string;
+
+    const { error } = await supabase
+      .from('saved_views')
+      .delete()
+      .eq('id', viewId)
+      .eq('user_id', session.user.id);
+
+    if (error) {
+      throw new Error('Failed to delete view');
+    }
+
+    return json({ success: true }, { headers });
+  }
+
+  return json({ error: 'Invalid intent' }, { status: 400, headers });
+}
+
 export default function ClientsIndex() {
-  const { clients, totalCount, currentPage, itemsPerPage } =
-    useLoaderData<typeof loader>();
+  const {
+    clients,
+    totalCount,
+    currentPage,
+    itemsPerPage,
+    sortParams,
+    filterParams,
+    savedViews,
+  } = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
+
+  // Status filter options
+  const statusOptions = [
+    { value: 'lead', label: 'Lead' },
+    { value: 'prospect', label: 'Prospect' },
+    { value: 'active', label: 'Active' },
+    { value: 'on_hold', label: 'On Hold' },
+    { value: 'inactive', label: 'Inactive' },
+    { value: 'archived', label: 'Archived' },
+  ];
+
+  // Sortable columns
+  const sortableColumns = [
+    { value: 'name', label: 'Name' },
+    { value: 'contact', label: 'Contact Person' },
+    { value: 'email', label: 'Email' },
+    { value: 'phone', label: 'Phone' },
+    { value: 'status', label: 'Status' },
+  ];
+
+  // Decode saved views
+  const decodedViews = savedViews.map((view: any) => ({
+    ...view,
+    view_state:
+      typeof view.view_state === 'string'
+        ? decodeViewState(view.view_state)
+        : view.view_state,
+  }));
+
+  // Extract current view state for saving
+  const currentViewState = extractViewState(sortParams, filterParams);
 
   return (
     <div className='container mx-auto space-y-4 p-4 md:space-y-6 md:p-6'>
       {/* Header */}
-      <div className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4'>
-        <div>
-          <h1 className='text-xl font-bold md:text-3xl'>Clients</h1>
-          <p className='text-xs text-muted-foreground md:text-base'>
-            Manage your client information
-          </p>
+      <div className='flex flex-col gap-4'>
+        <div className='flex items-start justify-between gap-4'>
+          <div>
+            <h1 className='text-xl font-bold md:text-3xl'>Clients</h1>
+            <p className='text-xs text-muted-foreground md:text-base'>
+              Manage your client information
+            </p>
+          </div>
+          <Link to='/dashboard/clients/new'>
+            <Button>
+              <Plus className='mr-2 h-4 w-4' />
+              New Client
+            </Button>
+          </Link>
         </div>
-        <Link to='/dashboard/clients/new'>
-          <Button>
-            <Plus className='mr-2 h-4 w-4' />
-            New Client
-          </Button>
-        </Link>
-      </div>
 
-      {/* Search */}
-      <Card>
-        <CardContent className='p-4 md:pt-6'>
-          <SearchInput
-            placeholder='Search clients by name, email, phone...'
-            preserveParams={['limit']}
+        {/* Toolbar */}
+        <div className='flex items-center gap-2'>
+          <div className='flex-1'>
+            <SearchInput
+              placeholder='Search clients...'
+              preserveParams={['limit', 'status', 'sort', 'order']}
+            />
+          </div>
+          <SortMenu
+            sortableColumns={sortableColumns}
+            currentSortBy={sortParams.sortBy}
+            currentSortOrder={sortParams.sortOrder}
+            defaultSortBy='created_at'
+            defaultSortOrder='desc'
           />
-        </CardContent>
-      </Card>
+          <FilterBar
+            filters={filterParams}
+            statusOptions={statusOptions}
+            showDateRange={false}
+            showSearch={false}
+            searchPlaceholder='Search clients by name, email, phone...'
+          />
+          <SavedViewsMenu
+            views={decodedViews}
+            currentViewState={currentViewState}
+            tableName='clients'
+          />
+        </div>
+      </div>
 
       {/* Clients List */}
       {clients.length === 0 ? (
@@ -131,14 +277,16 @@ export default function ClientsIndex() {
               <Plus className='h-10 w-10 text-muted-foreground' />
             </div>
             <h3 className='mt-4 text-lg font-semibold'>
-              {searchParams.get('q') ? 'No clients found' : 'No clients yet'}
+              {filterParams.search || filterParams.status
+                ? 'No clients found'
+                : 'No clients yet'}
             </h3>
             <p className='mt-2 text-center text-sm text-muted-foreground'>
-              {searchParams.get('q')
-                ? 'Try adjusting your search'
+              {filterParams.search || filterParams.status
+                ? 'Try adjusting your filters or search'
                 : 'Get started by adding your first client'}
             </p>
-            {!searchParams.get('q') && (
+            {!filterParams.search && !filterParams.status && (
               <Link to='/dashboard/clients/new'>
                 <Button className='mt-4'>
                   <Plus className='mr-2 h-4 w-4' />
@@ -229,25 +377,25 @@ export default function ClientsIndex() {
                 <table className='w-full'>
                   <thead className='border-b bg-muted/50'>
                     <tr>
-                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                      <th className='px-6 py-3 text-left text-sm font-medium text-muted-foreground'>
                         Name
                       </th>
-                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                      <th className='px-6 py-3 text-left text-sm font-medium text-muted-foreground'>
                         Contact Person
                       </th>
-                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                      <th className='px-6 py-3 text-left text-sm font-medium text-muted-foreground'>
                         Email
                       </th>
-                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                      <th className='px-6 py-3 text-left text-sm font-medium text-muted-foreground'>
                         Phone
                       </th>
-                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                      <th className='px-6 py-3 text-left text-sm font-medium text-muted-foreground'>
                         Location
                       </th>
-                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                      <th className='px-6 py-3 text-left text-sm font-medium text-muted-foreground'>
                         Status
                       </th>
-                      <th className='px-6 py-3 text-right text-sm font-medium'>
+                      <th className='px-6 py-3 text-right text-sm font-medium text-muted-foreground'>
                         Actions
                       </th>
                     </tr>
@@ -310,7 +458,7 @@ export default function ClientsIndex() {
               currentPage={currentPage}
               itemsPerPage={itemsPerPage}
               basePath='/dashboard/clients'
-              preserveParams={['q']}
+              preserveParams={['q', 'status', 'sort', 'order']}
             />
           )}
         </>

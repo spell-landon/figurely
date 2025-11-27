@@ -1,4 +1,4 @@
-import { Resend } from "resend";
+import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -19,11 +19,11 @@ export async function sendInvoiceEmail({
 }: SendInvoiceEmailParams) {
   // Always use RESEND_FROM_EMAIL for the actual sender (Resend requirement)
   // We'll include the business name in the subject/body instead
-  const from = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+  const from = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
   try {
     const { data, error } = await resend.emails.send({
-      from,
+      from: `Ledgerly <${from}>`,
       to: [to],
       subject: `Invoice ${invoiceNumber}`,
       html: `
@@ -45,7 +45,9 @@ export async function sendInvoiceEmail({
               </p>
 
               <p style="font-size: 16px; margin-bottom: 20px;">
-                You have received a new invoice ${fromName ? `from ${fromName}` : ''}.
+                You have received a new invoice ${
+                  fromName ? `from ${fromName}` : ''
+                }.
               </p>
 
               <div style="text-align: center; margin: 30px 0;">
@@ -56,7 +58,9 @@ export async function sendInvoiceEmail({
               </div>
 
               <p style="font-size: 14px; color: #666; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
-                If you have any questions about this invoice, please contact ${fromName || 'us'}.
+                If you have any questions about this invoice, please contact ${
+                  fromName || 'us'
+                }.
               </p>
 
               <p style="font-size: 12px; color: #999; margin-top: 20px; text-align: center;">
@@ -73,7 +77,9 @@ You have received a new invoice${fromName ? ` from ${fromName}` : ''}.
 
 View your invoice here: ${invoiceUrl}
 
-If you have any questions about this invoice, please contact ${fromName || 'us'}.
+If you have any questions about this invoice, please contact ${
+        fromName || 'us'
+      }.
 
 ---
 This invoice was sent via Ledgerly
@@ -81,13 +87,13 @@ This invoice was sent via Ledgerly
     });
 
     if (error) {
-      console.error("Error sending email:", error);
+      console.error('Error sending email:', error);
       throw new Error(error.message);
     }
 
     return { success: true, data };
   } catch (error) {
-    console.error("Failed to send invoice email:", error);
+    console.error('Failed to send invoice email:', error);
     throw error;
   }
 }

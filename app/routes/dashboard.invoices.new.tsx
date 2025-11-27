@@ -550,14 +550,6 @@ export default function NewInvoice() {
                           </Button>
                         </Link>
                       )}
-                      <Button
-                        type='button'
-                        variant='outline'
-                        size='sm'
-                        onClick={addLineItem}>
-                        <Plus className='mr-2 h-4 w-4' />
-                        Add Blank
-                      </Button>
                     </div>
                   </div>
                 </CardHeader>
@@ -600,11 +592,7 @@ export default function NewInvoice() {
                         <Input
                           value={item.description}
                           onChange={(e) =>
-                            updateLineItem(
-                              index,
-                              'description',
-                              e.target.value
-                            )
+                            updateLineItem(index, 'description', e.target.value)
                           }
                           placeholder='Additional details about the item'
                           className='text-sm'
@@ -648,6 +636,16 @@ export default function NewInvoice() {
                       </div>
                     </div>
                   ))}
+
+                  <Button
+                    type='button'
+                    variant='default'
+                    size='sm'
+                    onClick={addLineItem}
+                    className='w-full'>
+                    <Plus className='mr-2 h-4 w-4' />
+                    Add Blank
+                  </Button>
 
                   {/* Hidden input for line items */}
                   <input

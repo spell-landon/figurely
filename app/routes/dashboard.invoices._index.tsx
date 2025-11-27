@@ -1,6 +1,8 @@
 import {
   json,
+  redirect,
   type LoaderFunctionArgs,
+  type ActionFunctionArgs,
   type MetaFunction,
 } from '@remix-run/node';
 import { Link, useLoaderData, useSearchParams } from '@remix-run/react';
@@ -11,9 +13,23 @@ import { Badge } from '~/components/ui/badge';
 import { requireAuth } from '~/lib/auth.server';
 import { formatCurrency, formatDate, cn } from '~/lib/utils';
 import { Pagination } from '~/components/pagination';
-import { SearchInput } from '~/components/search-input';
 import { parsePaginationParams, getSupabaseRange } from '~/lib/pagination';
 import { parseSearchParams, buildSupabaseSearchQuery } from '~/lib/search';
+import {
+  parseSortParams,
+  applySupabaseSorting,
+  invoiceColumnMap,
+} from '~/lib/sorting';
+import { parseFilterParams, applySupabaseFilters } from '~/lib/filtering';
+import {
+  encodeViewState,
+  decodeViewState,
+  extractViewState,
+} from '~/lib/views';
+import { FilterBar } from '~/components/filter-bar';
+import { SortMenu } from '~/components/sort-menu';
+import { SavedViewsMenu } from '~/components/saved-views-menu';
+import { SearchInput } from '~/components/search-input';
 
 export const meta: MetaFunction = () => {
   return [
@@ -21,8 +37,6 @@ export const meta: MetaFunction = () => {
     { name: 'description', content: 'Manage your invoices' },
   ];
 };
-
-type InvoiceStatus = 'all' | 'draft' | 'sent' | 'paid' | 'overdue';
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, supabase, headers } = await requireAuth(request);
@@ -37,20 +51,31 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Parse search params
   const { query } = parseSearchParams(searchParams);
 
-  // Parse status filter
-  const status = (searchParams.get('status') || 'all') as InvoiceStatus;
+  // Parse sorting params
+  const sortParams = parseSortParams(searchParams, 'date', 'desc');
+
+  // Parse filter params
+  const filterParams = parseFilterParams(searchParams);
 
   // Build base query
   let invoicesQuery = supabase
     .from('invoices')
     .select('*', { count: 'exact' })
-    .eq('user_id', session.user.id)
-    .order('created_at', { ascending: false });
+    .eq('user_id', session.user.id);
 
-  // Apply status filter
-  if (status !== 'all') {
-    invoicesQuery = invoicesQuery.eq('status', status);
-  }
+  // Apply sorting
+  invoicesQuery = applySupabaseSorting(
+    invoicesQuery,
+    sortParams.sortBy || 'date',
+    sortParams.sortOrder,
+    invoiceColumnMap
+  );
+
+  // Apply status filter from filterParams
+  invoicesQuery = applySupabaseFilters(invoicesQuery, filterParams, {
+    statusColumn: 'status',
+    dateColumn: 'date',
+  });
 
   // Apply search if provided
   if (query) {
@@ -72,34 +97,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
     throw new Error('Failed to load invoices');
   }
 
-  // Get counts for each status (for badges)
-  const [allCount, draftCount, sentCount, paidCount, overdueCount] =
-    await Promise.all([
-      supabase
-        .from('invoices')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', session.user.id),
-      supabase
-        .from('invoices')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', session.user.id)
-        .eq('status', 'draft'),
-      supabase
-        .from('invoices')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', session.user.id)
-        .eq('status', 'sent'),
-      supabase
-        .from('invoices')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', session.user.id)
-        .eq('status', 'paid'),
-      supabase
-        .from('invoices')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', session.user.id)
-        .eq('status', 'overdue'),
-    ]);
+  // Fetch saved views for this table
+  const { data: savedViews } = await supabase
+    .from('saved_views')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .eq('table_name', 'invoices')
+    .order('created_at', { ascending: false });
 
   return json(
     {
@@ -107,17 +111,55 @@ export async function loader({ request }: LoaderFunctionArgs) {
       totalCount: count || 0,
       currentPage: page,
       itemsPerPage: limit,
-      statusCounts: {
-        all: allCount.count || 0,
-        draft: draftCount.count || 0,
-        sent: sentCount.count || 0,
-        paid: paidCount.count || 0,
-        overdue: overdueCount.count || 0,
-      },
-      currentStatus: status,
+      sortParams,
+      filterParams: { ...filterParams, search: query || undefined },
+      savedViews: savedViews || [],
     },
     { headers }
   );
+}
+
+export async function action({ request }: ActionFunctionArgs) {
+  const { session, supabase, headers } = await requireAuth(request);
+  const formData = await request.formData();
+  const intent = formData.get('intent');
+
+  if (intent === 'save_view') {
+    const viewName = formData.get('view_name') as string;
+    const tableName = formData.get('table_name') as string;
+    const viewState = formData.get('view_state') as string;
+
+    const { error } = await supabase.from('saved_views').insert({
+      user_id: session.user.id,
+      name: viewName,
+      table_name: tableName,
+      view_state: JSON.parse(viewState),
+    });
+
+    if (error) {
+      throw new Error('Failed to save view');
+    }
+
+    return json({ success: true }, { headers });
+  }
+
+  if (intent === 'delete_view') {
+    const viewId = formData.get('view_id') as string;
+
+    const { error } = await supabase
+      .from('saved_views')
+      .delete()
+      .eq('id', viewId)
+      .eq('user_id', session.user.id);
+
+    if (error) {
+      throw new Error('Failed to delete view');
+    }
+
+    return json({ success: true }, { headers });
+  }
+
+  return json({ error: 'Invalid intent' }, { status: 400, headers });
 }
 
 function getStatusBadge(status: string) {
@@ -158,94 +200,113 @@ export default function InvoicesIndex() {
     totalCount,
     currentPage,
     itemsPerPage,
-    statusCounts,
-    currentStatus,
+    sortParams,
+    filterParams,
+    savedViews,
   } = useLoaderData<typeof loader>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
-  const statusFilters: Array<{
-    value: InvoiceStatus;
-    label: string;
-    count: number;
-  }> = [
-    { value: 'all', label: 'All', count: statusCounts.all },
-    { value: 'draft', label: 'Draft', count: statusCounts.draft },
-    { value: 'sent', label: 'Sent', count: statusCounts.sent },
-    { value: 'paid', label: 'Paid', count: statusCounts.paid },
-    { value: 'overdue', label: 'Overdue', count: statusCounts.overdue },
+  // Status filter options
+  const statusOptions = [
+    { value: 'draft', label: 'Draft' },
+    { value: 'sent', label: 'Sent' },
+    { value: 'paid', label: 'Paid' },
+    { value: 'overdue', label: 'Overdue' },
   ];
 
-  const handleStatusFilter = (status: InvoiceStatus) => {
-    const params = new URLSearchParams(searchParams);
+  // Sortable columns
+  const sortableColumns = [
+    { value: 'invoice_number', label: 'Invoice #' },
+    { value: 'client', label: 'Client' },
+    { value: 'date', label: 'Date' },
+    { value: 'amount', label: 'Amount' },
+    { value: 'status', label: 'Status' },
+  ];
 
-    if (status === 'all') {
-      params.delete('status');
-    } else {
-      params.set('status', status);
+  // Decode saved views
+  const decodedViews = savedViews.map((view: any) => ({
+    ...view,
+    view_state:
+      typeof view.view_state === 'string'
+        ? decodeViewState(view.view_state)
+        : view.view_state,
+  }));
+
+  // Extract current view state for saving
+  const currentViewState = extractViewState(sortParams, filterParams);
+
+  // Group invoices by year and calculate totals
+  const invoicesByYear = invoices.reduce((acc, invoice) => {
+    const year = new Date(invoice.date).getFullYear();
+    if (!acc[year]) {
+      acc[year] = { invoices: [], total: 0 };
     }
+    acc[year].invoices.push(invoice);
+    acc[year].total += invoice.total;
+    return acc;
+  }, {} as Record<number, { invoices: any[]; total: number }>);
 
-    // Reset to page 1 when filtering
-    params.delete('page');
-
-    setSearchParams(params);
-  };
+  // Sort years in descending order
+  const sortedYears = Object.keys(invoicesByYear)
+    .map(Number)
+    .sort((a, b) => b - a);
 
   return (
     <div className='container mx-auto space-y-4 p-4 md:space-y-6 md:p-6'>
       {/* Header */}
-      <div className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4'>
-        <div>
-          <h1 className='text-xl font-bold md:text-3xl'>Invoices</h1>
-          <p className='text-xs text-muted-foreground md:text-base'>
-            Create and manage your invoices
-          </p>
-        </div>
-        <Link to='/dashboard/invoices/new'>
-          <Button>
-            <Plus className='mr-2 h-4 w-4' />
-            New Invoice
-          </Button>
-        </Link>
-      </div>
-
-      {/* Status Filter Tabs */}
-      <Card>
-        <CardContent className='p-4 md:p-6'>
-          <div className='flex flex-wrap gap-2'>
-            {statusFilters.map((filter) => (
-              <Button
-                key={filter.value}
-                variant={currentStatus === filter.value ? 'default' : 'outline'}
-                size='sm'
-                onClick={() => handleStatusFilter(filter.value)}
-                className='relative'>
-                {filter.label}
-                {filter.count > 0 && (
-                  <span
-                    className={cn(
-                      'ml-2 rounded-full px-2 py-0.5 text-xs font-semibold',
-                      currentStatus === filter.value
-                        ? 'bg-primary-foreground/20 text-primary-foreground'
-                        : 'bg-muted text-muted-foreground'
-                    )}>
-                    {filter.count}
-                  </span>
-                )}
-              </Button>
-            ))}
+      <div className='flex flex-col gap-4'>
+        <div className='flex items-start justify-between gap-4'>
+          <div>
+            <h1 className='text-xl font-bold md:text-3xl'>Invoices</h1>
+            <p className='text-xs text-muted-foreground md:text-base'>
+              Create and manage your invoices
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          <Link to='/dashboard/invoices/new'>
+            <Button>
+              <Plus className='mr-2 h-4 w-4' />
+              New Invoice
+            </Button>
+          </Link>
+        </div>
 
-      {/* Search */}
-      <Card>
-        <CardContent className='p-4 md:pt-6'>
-          <SearchInput
-            placeholder='Search invoices by number, client, email...'
-            preserveParams={['limit', 'status']}
+        {/* Toolbar */}
+        <div className='flex items-center gap-2'>
+          <div className='flex-1'>
+            <SearchInput
+              placeholder='Search invoices...'
+              preserveParams={[
+                'limit',
+                'status',
+                'sort',
+                'order',
+                'date_from',
+                'date_to',
+                'date_preset',
+              ]}
+            />
+          </div>
+          <SortMenu
+            sortableColumns={sortableColumns}
+            currentSortBy={sortParams.sortBy}
+            currentSortOrder={sortParams.sortOrder}
+            defaultSortBy='date'
+            defaultSortOrder='desc'
           />
-        </CardContent>
-      </Card>
+          <FilterBar
+            filters={filterParams}
+            statusOptions={statusOptions}
+            showDateRange={true}
+            showSearch={false}
+            searchPlaceholder='Search invoices by number, client, email...'
+          />
+          <SavedViewsMenu
+            views={decodedViews}
+            currentViewState={currentViewState}
+            tableName='invoices'
+          />
+        </div>
+      </div>
 
       {/* Invoices List */}
       {invoices.length === 0 ? (
@@ -255,109 +316,85 @@ export default function InvoicesIndex() {
               <Plus className='h-10 w-10 text-muted-foreground' />
             </div>
             <h3 className='mt-4 text-lg font-semibold'>
-              {searchParams.get('q') || currentStatus !== 'all'
+              {filterParams.search ||
+              filterParams.status ||
+              filterParams.dateRange
                 ? 'No invoices found'
                 : 'No invoices yet'}
             </h3>
             <p className='mt-2 text-center text-sm text-muted-foreground'>
-              {searchParams.get('q') || currentStatus !== 'all'
+              {filterParams.search ||
+              filterParams.status ||
+              filterParams.dateRange
                 ? 'Try adjusting your filters or search'
                 : 'Get started by creating your first invoice'}
             </p>
-            {!searchParams.get('q') && currentStatus === 'all' && (
-              <Link to='/dashboard/invoices/new'>
-                <Button className='mt-4'>
-                  <Plus className='mr-2 h-4 w-4' />
-                  Create Invoice
-                </Button>
-              </Link>
-            )}
+            {!filterParams.search &&
+              !filterParams.status &&
+              !filterParams.dateRange && (
+                <Link to='/dashboard/invoices/new'>
+                  <Button className='mt-4'>
+                    <Plus className='mr-2 h-4 w-4' />
+                    Create Invoice
+                  </Button>
+                </Link>
+              )}
           </CardContent>
         </Card>
       ) : (
         <>
           {/* Mobile Card View */}
-          <div className='flex flex-col gap-3 md:hidden'>
-            {invoices.map((invoice) => (
-              <Link
-                key={invoice.id}
-                to={`/dashboard/invoices/${invoice.id}`}
-                className='block'>
-                <Card className='transition-shadow hover:shadow-md'>
-                  <CardContent className='p-4'>
-                    <div className='mb-3 flex items-start justify-between'>
-                      <div>
-                        <p className='text-base font-semibold text-primary'>
-                          {invoice.invoice_number}
-                        </p>
-                        <p className='text-xs text-muted-foreground'>
-                          {invoice.bill_to_name || 'No client'}
-                        </p>
-                      </div>
-                      {getStatusBadge(invoice.status)}
-                    </div>
-                    <div className='grid grid-cols-2 gap-2'>
-                      <div>
-                        <p className='text-xs text-muted-foreground'>Amount</p>
-                        <p className='text-base font-bold'>
-                          ${formatCurrency(invoice.total)}
-                        </p>
-                      </div>
-                      <div className='text-right'>
-                        <p className='text-xs text-muted-foreground'>Date</p>
-                        <p className='text-sm'>
-                          {formatDate(invoice.date)}
-                        </p>
-                      </div>
-                      {invoice.payment_method && (
-                        <div className='col-span-2'>
-                          <p className='text-xs text-muted-foreground'>
-                            Payment
+          <div className='flex flex-col gap-4 md:hidden'>
+            {sortedYears.map((year) => (
+              <div key={year} className='space-y-2'>
+                {/* Year Group Header */}
+                <div className='flex items-center justify-between px-1 pb-2'>
+                  <h3 className='text-lg font-semibold'>{year}</h3>
+                  <div className='text-right'>
+                    <p className='text-xs text-muted-foreground'>
+                      Invoice Total
+                    </p>
+                    <p className='text-sm font-semibold'>
+                      ${formatCurrency(invoicesByYear[year].total)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Year's Invoices */}
+                {invoicesByYear[year].invoices.map((invoice) => (
+                  <Link
+                    key={invoice.id}
+                    to={`/dashboard/invoices/${invoice.id}`}
+                    className='block'>
+                    <Card className='transition-shadow hover:shadow-md'>
+                      <CardContent className='p-3'>
+                        {/* Line 1: Client and Amount */}
+                        <div className='flex items-center justify-between mb-2'>
+                          <p className='text-sm font-medium truncate flex-1 mr-2'>
+                            {invoice.bill_to_name || 'No client'}
                           </p>
-                          <p className='text-sm font-medium'>
-                            {formatPaymentMethod(invoice.payment_method)}
+                          <p className='text-base font-bold whitespace-nowrap'>
+                            ${formatCurrency(invoice.total)}
                           </p>
                         </div>
-                      )}
-                    </div>
-                    <div className='mt-3 flex items-center gap-2 border-t pt-3'>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        onClick={(e) => {
-                          e.preventDefault();
-                          window.location.href = `/dashboard/invoices/${invoice.id}`;
-                        }}>
-                        <Eye className='mr-1 h-4 w-4' />
-                        View
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        onClick={(e) => {
-                          e.preventDefault();
-                          window.location.href = `/dashboard/invoices/${invoice.id}/edit`;
-                        }}>
-                        <Edit className='mr-1 h-4 w-4' />
-                        Edit
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        onClick={(e) => {
-                          e.preventDefault();
-                          window.open(
-                            `/dashboard/invoices/${invoice.id}/pdf`,
-                            '_blank'
-                          );
-                        }}>
-                        <Download className='mr-1 h-4 w-4' />
-                        PDF
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+
+                        {/* Line 2: Invoice #, Status, and Date */}
+                        <div className='flex items-center justify-between'>
+                          <p className='text-xs text-muted-foreground'>
+                            {invoice.invoice_number}
+                          </p>
+                          <div className='flex items-center gap-2'>
+                            {getStatusBadge(invoice.status)}
+                            <p className='text-xs text-muted-foreground whitespace-nowrap'>
+                              {formatDate(invoice.date)}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
             ))}
           </div>
 
@@ -368,25 +405,25 @@ export default function InvoicesIndex() {
                 <table className='w-full'>
                   <thead className='border-b bg-muted/50'>
                     <tr>
-                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                      <th className='px-6 py-3 text-left text-sm font-medium text-muted-foreground'>
                         Invoice #
                       </th>
-                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                      <th className='px-6 py-3 text-left text-sm font-medium text-muted-foreground'>
                         Client
                       </th>
-                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                      <th className='px-6 py-3 text-left text-sm font-medium text-muted-foreground'>
                         Date
                       </th>
-                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                      <th className='px-6 py-3 text-left text-sm font-medium text-muted-foreground'>
                         Amount
                       </th>
-                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                      <th className='px-6 py-3 text-left text-sm font-medium text-muted-foreground'>
                         Status
                       </th>
-                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                      <th className='px-6 py-3 text-left text-sm font-medium text-muted-foreground'>
                         Payment
                       </th>
-                      <th className='px-6 py-3 text-right text-sm font-medium'>
+                      <th className='px-6 py-3 text-right text-sm font-medium text-muted-foreground'>
                         Actions
                       </th>
                     </tr>
@@ -458,7 +495,15 @@ export default function InvoicesIndex() {
               currentPage={currentPage}
               itemsPerPage={itemsPerPage}
               basePath='/dashboard/invoices'
-              preserveParams={['q', 'status']}
+              preserveParams={[
+                'q',
+                'status',
+                'sort',
+                'order',
+                'date_from',
+                'date_to',
+                'date_preset',
+              ]}
             />
           )}
         </>

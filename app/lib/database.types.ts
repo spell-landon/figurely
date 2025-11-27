@@ -428,6 +428,35 @@ export interface Database {
           is_active?: boolean
         }
       }
+      saved_views: {
+        Row: {
+          id: string
+          user_id: string
+          created_at: string
+          updated_at: string
+          name: string
+          table_name: string
+          view_state: Json
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          created_at?: string
+          updated_at?: string
+          name: string
+          table_name: string
+          view_state: Json
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          created_at?: string
+          updated_at?: string
+          name?: string
+          table_name?: string
+          view_state?: Json
+        }
+      }
     }
     Views: {
       [_ in never]: never

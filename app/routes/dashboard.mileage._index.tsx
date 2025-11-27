@@ -8,6 +8,7 @@ import {
   Link,
   useLoaderData,
   useActionData,
+  useSearchParams,
   Form,
   useNavigation,
 } from '@remix-run/react';
@@ -25,6 +26,24 @@ import { Input } from '~/components/ui/input';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { requireAuth } from '~/lib/auth.server';
 import { formatCurrency } from '~/lib/utils';
+import { Pagination } from '~/components/pagination';
+import { SearchInput } from '~/components/search-input';
+import { parsePaginationParams, getSupabaseRange } from '~/lib/pagination';
+import { parseSearchParams, buildSupabaseSearchQuery } from '~/lib/search';
+import {
+  parseSortParams,
+  applySupabaseSorting,
+  mileageColumnMap,
+} from '~/lib/sorting';
+import { parseFilterParams, applySupabaseFilters } from '~/lib/filtering';
+import {
+  encodeViewState,
+  decodeViewState,
+  extractViewState,
+} from '~/lib/views';
+import { FilterBar } from '~/components/filter-bar';
+import { SortMenu } from '~/components/sort-menu';
+import { SavedViewsMenu } from '~/components/saved-views-menu';
 
 export const meta: MetaFunction = () => {
   return [
@@ -36,25 +55,119 @@ export const meta: MetaFunction = () => {
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, supabase, headers } = await requireAuth(request);
 
-  const { data: mileage, error } = await supabase
+  const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
+
+  // Parse pagination params
+  const { page, limit } = parsePaginationParams(searchParams);
+  const { from, to } = getSupabaseRange(page, limit);
+
+  // Parse search params
+  const { query } = parseSearchParams(searchParams);
+
+  // Parse sorting params
+  const sortParams = parseSortParams(searchParams, 'date', 'desc');
+
+  // Parse filter params
+  const filterParams = parseFilterParams(searchParams);
+
+  // Build base query
+  let mileageQuery = supabase
     .from('mileage')
-    .select('*')
-    .eq('user_id', session.user.id)
-    .order('date', { ascending: false });
+    .select('*', { count: 'exact' })
+    .eq('user_id', session.user.id);
+
+  // Apply sorting
+  mileageQuery = applySupabaseSorting(
+    mileageQuery,
+    sortParams.sortBy || 'date',
+    sortParams.sortOrder,
+    mileageColumnMap
+  );
+
+  // Apply filters (date range only)
+  mileageQuery = applySupabaseFilters(mileageQuery, filterParams, {
+    dateColumn: 'date',
+  });
+
+  // Apply search if provided
+  if (query) {
+    const searchQuery = buildSupabaseSearchQuery(query, ['purpose', 'notes']);
+    mileageQuery = mileageQuery.or(searchQuery);
+  }
+
+  // Apply pagination
+  mileageQuery = mileageQuery.range(from, to);
+
+  const { data: mileage, error, count } = await mileageQuery;
 
   if (error) {
     throw new Error('Failed to load mileage records');
   }
 
-  return json({ mileage: mileage || [] }, { headers });
+  // Fetch saved views for this table
+  const { data: savedViews } = await supabase
+    .from('saved_views')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .eq('table_name', 'mileage')
+    .order('created_at', { ascending: false });
+
+  return json(
+    {
+      mileage: mileage || [],
+      totalCount: count || 0,
+      currentPage: page,
+      itemsPerPage: limit,
+      sortParams,
+      filterParams: { ...filterParams, search: query || undefined },
+      savedViews: savedViews || [],
+    },
+    { headers }
+  );
 }
 
 export async function action({ request }: ActionFunctionArgs) {
   const { session, supabase, headers } = await requireAuth(request);
   const formData = await request.formData();
   const intent = formData.get('intent');
-  const id = formData.get('id');
 
+  if (intent === 'save_view') {
+    const viewName = formData.get('view_name') as string;
+    const tableName = formData.get('table_name') as string;
+    const viewState = formData.get('view_state') as string;
+
+    const { error } = await supabase.from('saved_views').insert({
+      user_id: session.user.id,
+      name: viewName,
+      table_name: tableName,
+      view_state: JSON.parse(viewState),
+    });
+
+    if (error) {
+      throw new Error('Failed to save view');
+    }
+
+    return json({ success: true }, { headers });
+  }
+
+  if (intent === 'delete_view') {
+    const viewId = formData.get('view_id') as string;
+
+    const { error } = await supabase
+      .from('saved_views')
+      .delete()
+      .eq('id', viewId)
+      .eq('user_id', session.user.id);
+
+    if (error) {
+      throw new Error('Failed to delete view');
+    }
+
+    return json({ success: true }, { headers });
+  }
+
+  const id = formData.get('id');
   if (intent === 'delete' && id) {
     const { error } = await supabase
       .from('mileage')
@@ -76,15 +189,46 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function MileageIndex() {
-  const { mileage } = useLoaderData<typeof loader>();
+  const {
+    mileage,
+    totalCount,
+    currentPage,
+    itemsPerPage,
+    sortParams,
+    filterParams,
+    savedViews,
+  } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
+  const [searchParams] = useSearchParams();
   const navigation = useNavigation();
   const isDeleting = navigation.state === 'submitting';
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<any>(null);
   const deleteFormRef = useRef<HTMLFormElement>(null);
 
-  // Calculate totals
+  // Sortable columns
+  const sortableColumns = [
+    { value: 'date', label: 'Date' },
+    { value: 'purpose', label: 'Purpose' },
+    { value: 'miles', label: 'Miles' },
+    { value: 'rate', label: 'Rate' },
+    { value: 'deduction', label: 'Deduction' },
+  ];
+
+  // Decode saved views
+  const decodedViews = savedViews.map((view: any) => ({
+    ...view,
+    view_state:
+      typeof view.view_state === 'string'
+        ? decodeViewState(view.view_state)
+        : view.view_state,
+  }));
+
+  // Extract current view state for saving
+  const currentViewState = extractViewState(sortParams, filterParams);
+
+  // Calculate totals - Note: We're calculating from the current page only
+  // To get all-time totals, we'd need a separate query
   const totalMiles = mileage.reduce(
     (sum, record) => sum + (record.miles || 0),
     0
@@ -121,28 +265,65 @@ export default function MileageIndex() {
       )}
 
       {/* Header */}
-      <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
-        <div>
-          <h1 className='text-2xl font-bold md:text-3xl'>Mileage Tracking</h1>
-          <p className='text-sm text-muted-foreground md:text-base'>
-            Track business miles driven for tax deductions
-          </p>
+      <div className='flex flex-col gap-4'>
+        <div className='flex items-start justify-between gap-4'>
+          <div>
+            <h1 className='text-2xl font-bold md:text-3xl'>Mileage Tracking</h1>
+            <p className='text-sm text-muted-foreground md:text-base'>
+              Track business miles driven for tax deductions
+            </p>
+          </div>
+          <Link to='/dashboard/mileage/new'>
+            <Button>
+              <Plus className='mr-2 h-4 w-4' />
+              Add Mileage
+            </Button>
+          </Link>
         </div>
-        <Link to='/dashboard/mileage/new'>
-          <Button>
-            <Plus className='mr-2 h-4 w-4' />
-            Add Mileage
-          </Button>
-        </Link>
+
+        {/* Toolbar */}
+        <div className='flex items-center gap-2'>
+          <div className='flex-1'>
+            <SearchInput
+              placeholder='Search mileage...'
+              preserveParams={[
+                'limit',
+                'sort',
+                'order',
+                'date_from',
+                'date_to',
+                'date_preset',
+              ]}
+            />
+          </div>
+          <SortMenu
+            sortableColumns={sortableColumns}
+            currentSortBy={sortParams.sortBy}
+            currentSortOrder={sortParams.sortOrder}
+            defaultSortBy='date'
+            defaultSortOrder='desc'
+          />
+          <FilterBar
+            filters={filterParams}
+            showDateRange={true}
+            showSearch={false}
+            searchPlaceholder='Search mileage by purpose or notes...'
+          />
+          <SavedViewsMenu
+            views={decodedViews}
+            currentViewState={currentViewState}
+            tableName='mileage'
+          />
+        </div>
       </div>
 
       {/* Stats */}
-      <div className='grid gap-4 grid-cols-3'>
+      <div className='grid gap-2 sm:gap-4 grid-cols-3'>
         <Card>
           <CardContent className='p-4 md:p-6 md:pt-6'>
             <div className='flex items-center gap-2 mb-2'>
               <Car className='h-4 w-4 text-muted-foreground' />
-              <div className='text-sm font-medium text-muted-foreground'>
+              <div className='text-xs sm:text-sm font-medium text-muted-foreground'>
                 Total Miles
               </div>
             </div>
@@ -153,7 +334,7 @@ export default function MileageIndex() {
         </Card>
         <Card>
           <CardContent className='p-4 md:p-6 md:pt-6'>
-            <div className='text-sm font-medium text-muted-foreground mb-2'>
+            <div className='text-xs sm:text-sm font-medium text-muted-foreground mb-2'>
               Total Deduction
             </div>
             <div className='text-2xl font-bold md:text-3xl'>
@@ -163,7 +344,7 @@ export default function MileageIndex() {
         </Card>
         <Card>
           <CardContent className='p-4 md:p-6 md:pt-6'>
-            <div className='text-sm font-medium text-muted-foreground mb-2'>
+            <div className='text-xs sm:text-sm font-medium text-muted-foreground mb-2'>
               This Month
             </div>
             <div className='text-2xl font-bold md:text-3xl'>
@@ -181,17 +362,23 @@ export default function MileageIndex() {
               <Car className='h-10 w-10 text-muted-foreground' />
             </div>
             <h3 className='mt-4 text-lg font-semibold'>
-              No mileage records yet
+              {filterParams.search || filterParams.dateRange
+                ? 'No mileage records found'
+                : 'No mileage records yet'}
             </h3>
             <p className='mt-2 text-center text-sm text-muted-foreground'>
-              Start tracking your business miles for tax deductions
+              {filterParams.search || filterParams.dateRange
+                ? 'Try adjusting your filters or search'
+                : 'Start tracking your business miles for tax deductions'}
             </p>
-            <Link to='/dashboard/mileage/new'>
-              <Button className='mt-4'>
-                <Plus className='mr-2 h-4 w-4' />
-                Add Mileage
-              </Button>
-            </Link>
+            {!filterParams.search && !filterParams.dateRange && (
+              <Link to='/dashboard/mileage/new'>
+                <Button className='mt-4'>
+                  <Plus className='mr-2 h-4 w-4' />
+                  Add Mileage
+                </Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -256,22 +443,22 @@ export default function MileageIndex() {
                 <table className='w-full'>
                   <thead className='border-b bg-muted/50'>
                     <tr>
-                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                      <th className='px-6 py-3 text-left text-sm font-medium text-muted-foreground'>
                         Date
                       </th>
-                      <th className='px-6 py-3 text-left text-sm font-medium'>
+                      <th className='px-6 py-3 text-left text-sm font-medium text-muted-foreground'>
                         Purpose
                       </th>
-                      <th className='px-6 py-3 text-right text-sm font-medium'>
+                      <th className='px-6 py-3 text-right text-sm font-medium text-muted-foreground'>
                         Miles
                       </th>
-                      <th className='px-6 py-3 text-right text-sm font-medium'>
+                      <th className='px-6 py-3 text-right text-sm font-medium text-muted-foreground'>
                         Rate
                       </th>
-                      <th className='px-6 py-3 text-right text-sm font-medium'>
+                      <th className='px-6 py-3 text-right text-sm font-medium text-muted-foreground'>
                         Deduction
                       </th>
-                      <th className='px-6 py-3 text-right text-sm font-medium'>
+                      <th className='px-6 py-3 text-right text-sm font-medium text-muted-foreground'>
                         Actions
                       </th>
                     </tr>
@@ -331,6 +518,24 @@ export default function MileageIndex() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Pagination */}
+          {totalCount > itemsPerPage && (
+            <Pagination
+              totalItems={totalCount}
+              currentPage={currentPage}
+              itemsPerPage={itemsPerPage}
+              basePath='/dashboard/mileage'
+              preserveParams={[
+                'q',
+                'sort',
+                'order',
+                'date_from',
+                'date_to',
+                'date_preset',
+              ]}
+            />
+          )}
         </>
       )}
 

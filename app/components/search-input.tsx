@@ -48,7 +48,8 @@ export function SearchInput({
 }: SearchInputProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const initialQuery = searchParams.get('q') || searchParams.get('search') || '';
+  const initialQuery =
+    searchParams.get('q') || searchParams.get('search') || '';
   const [query, setQuery] = useState(initialQuery);
 
   // Update local state when URL changes (e.g., back/forward navigation)
@@ -98,9 +99,10 @@ export function SearchInput({
   };
 
   // Create debounced version of update function
-  const debouncedUpdate = debounceMs > 0
-    ? debounce(updateSearchParams, debounceMs)
-    : updateSearchParams;
+  const debouncedUpdate =
+    debounceMs > 0
+      ? debounce(updateSearchParams, debounceMs)
+      : updateSearchParams;
 
   /**
    * Handle input change
@@ -129,24 +131,24 @@ export function SearchInput({
 
   return (
     <form onSubmit={handleSubmit} className={`relative ${className}`}>
-      <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground md:left-3" />
+      <Search className='absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground md:left-3' />
       <Input
-        type="text"
+        type='text'
         placeholder={placeholder}
         value={query}
         onChange={handleInputChange}
         autoFocus={autoFocus}
-        className="pl-9 pr-9 md:pl-10 md:pr-10"
+        className='pl-9 pr-9 md:pl-10 md:pr-10'
       />
       {query && (
         <Button
-          type="button"
-          variant="ghost"
-          size="icon"
+          type='button'
+          variant='ghost'
+          size='icon'
           onClick={handleClear}
-          className="absolute right-0.5 top-1/2 h-8 w-8 -translate-y-1/2 md:right-1 md:h-8 md:w-8"
-          aria-label="Clear search">
-          <X className="h-3.5 w-3.5 md:h-4 md:w-4" />
+          className='absolute right-0.5 top-1/2 h-8 w-8 -translate-y-1/2 md:right-1 md:h-8 md:w-8'
+          aria-label='Clear search'>
+          <X className='h-3.5 w-3.5 md:h-4 md:w-4' />
         </Button>
       )}
     </form>

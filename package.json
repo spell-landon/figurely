@@ -7,7 +7,9 @@
     "build": "remix vite:build",
     "dev": "remix vite:dev",
     "start": "remix-serve ./build/server/index.js",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "seed-invoices": "tsx scripts/seed-invoices.ts",
+    "clean-invoices": "tsx scripts/clean-invoices.ts"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.8",
@@ -20,6 +22,8 @@
     "@supabase/supabase-js": "^2.45.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "framer-motion": "^12.23.24",
     "isbot": "^4.1.0",
     "lucide-react": "^0.552.0",
@@ -36,6 +40,7 @@
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
+    "tsx": "^4.19.2",
     "typescript": "^5.6.2",
     "vite": "^5.4.11",
     "vite-tsconfig-paths": "^5.1.4"
