@@ -1,5 +1,5 @@
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
-import { Form, Outlet, useLoaderData } from '@remix-run/react';
+import { Form, Outlet, useLoaderData, useNavigation } from '@remix-run/react';
 import {
   FileText,
   Receipt,
@@ -12,6 +12,7 @@ import {
   Calculator,
   LogOut,
   Users,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '~/components/ui/button';
 import { requireAuth } from '~/lib/auth.server';
@@ -31,8 +32,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function Dashboard() {
   const { user } = useLoaderData<typeof loader>();
+  const navigation = useNavigation();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const isNavigating = navigation.state === 'loading';
 
   // Disable animations until after hydration to prevent hydration mismatch
   React.useEffect(() => {
@@ -157,7 +161,12 @@ export default function Dashboard() {
           </div>
         </SidebarBody>
       </Sidebar>
-      <main className='flex-1 overflow-auto bg-gray-50 dark:bg-neutral-900'>
+      <main className='relative flex-1 overflow-auto bg-gray-50 dark:bg-neutral-900'>
+        {isNavigating && (
+          <div className='absolute inset-0 z-10 flex items-center justify-center bg-gray-50/80 dark:bg-neutral-900/80'>
+            <Loader2 className='h-8 w-8 animate-spin text-primary' />
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

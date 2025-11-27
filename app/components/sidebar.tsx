@@ -1,8 +1,8 @@
 import { cn } from '~/lib/utils';
-import { Link, type LinkProps } from '@remix-run/react';
+import { Link, type LinkProps, useLocation, useNavigation } from '@remix-run/react';
 import React, { useState, createContext, useContext } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, X, ChevronLeft, FileText } from 'lucide-react';
+import { Menu, X, ChevronLeft, FileText, Loader2 } from 'lucide-react';
 
 interface Links {
   label: string;
@@ -162,11 +162,25 @@ export const SidebarLink = ({
   props?: LinkProps;
 }) => {
   const { open, animate, setOpen } = useSidebar();
+  const location = useLocation();
+  const navigation = useNavigation();
+
+  // Check if this link is active (exact match or starts with href for nested routes)
+  const isActive = location.pathname === link.href ||
+    (link.href !== '/dashboard' && location.pathname.startsWith(link.href));
+
+  // Check if we're navigating to this specific link
+  const isNavigatingToThis = navigation.state === 'loading' &&
+    navigation.location?.pathname === link.href;
+
   return (
     <Link
       to={link.href}
       className={cn(
-        'group/sidebar flex items-center justify-start gap-2 rounded-md px-2 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-800',
+        'group/sidebar flex items-center justify-start gap-2 rounded-md px-2 py-2 transition-colors',
+        isActive || isNavigatingToThis
+          ? 'bg-primary/10 text-primary dark:bg-primary/20'
+          : 'hover:bg-neutral-100 dark:hover:bg-neutral-800',
         className
       )}
       onClick={() => {
@@ -176,7 +190,13 @@ export const SidebarLink = ({
         }
       }}
       {...props}>
-      {link.icon}
+      <span className={cn((isActive || isNavigatingToThis) && 'text-primary')}>
+        {isNavigatingToThis ? (
+          <Loader2 className='h-5 w-5 animate-spin' />
+        ) : (
+          link.icon
+        )}
+      </span>
 
       <motion.span
         initial={false}
@@ -184,7 +204,12 @@ export const SidebarLink = ({
           display: animate ? (open ? 'inline-block' : 'none') : 'inline-block',
           opacity: animate ? (open ? 1 : 0) : 1,
         }}
-        className='!m-0 inline-block !p-0 text-sm whitespace-pre text-neutral-700 transition duration-150 dark:text-neutral-200'>
+        className={cn(
+          '!m-0 inline-block !p-0 text-sm whitespace-pre transition duration-150',
+          isActive || isNavigatingToThis
+            ? 'text-primary font-medium'
+            : 'text-neutral-700 dark:text-neutral-200'
+        )}>
         {link.label}
       </motion.span>
     </Link>
