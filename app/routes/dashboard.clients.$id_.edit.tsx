@@ -22,7 +22,7 @@ import { requireAuth } from '~/lib/auth.server';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
-    { title: `Edit ${data?.client?.name || 'Client'} - Ledgerly` },
+    { title: `Edit ${data?.client?.name || 'Client'} - Figurely` },
     { name: 'description', content: 'Edit client information' },
   ];
 };

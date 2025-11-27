@@ -23,7 +23,7 @@ export async function sendInvoiceEmail({
 
   try {
     const { data, error } = await resend.emails.send({
-      from: `Ledgerly <${from}>`,
+      from: `Figurely <${from}>`,
       to: [to],
       subject: `Invoice ${invoiceNumber}`,
       html: `
@@ -64,7 +64,7 @@ export async function sendInvoiceEmail({
               </p>
 
               <p style="font-size: 12px; color: #999; margin-top: 20px; text-align: center;">
-                This invoice was sent via Ledgerly
+                This invoice was sent via Figurely
               </p>
             </div>
           </body>
@@ -82,7 +82,7 @@ If you have any questions about this invoice, please contact ${
       }.
 
 ---
-This invoice was sent via Ledgerly
+This invoice was sent via Figurely
       `,
     });
 

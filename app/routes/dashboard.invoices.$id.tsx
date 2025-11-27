@@ -46,7 +46,7 @@ import { sendInvoiceEmail } from '~/lib/email.server';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
-    { title: `Invoice ${data?.invoice.invoice_number || ''} - Ledgerly` },
+    { title: `Invoice ${data?.invoice.invoice_number || ''} - Figurely` },
     { name: 'description', content: 'View invoice details' },
   ];
 };

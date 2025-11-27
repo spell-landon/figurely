@@ -29,7 +29,7 @@ import { AnimatedCounter } from '~/components/ui/animated-counter';
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Reports & Analytics - Ledgerly' },
+    { title: 'Reports & Analytics - Figurely' },
     {
       name: 'description',
       content: 'View your business reports and analytics',
@@ -221,7 +221,7 @@ export default function Reports() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ledgerly-report-${startDate}-to-${endDate}.csv`;
+    a.download = `figurely-report-${startDate}-to-${endDate}.csv`;
     a.click();
   };
 

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/com
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Ledgerly - Invoice & Expense Management Made Simple" },
+    { title: "Figurely - Invoice & Expense Management Made Simple" },
     { name: "description", content: "Professional invoicing, expense tracking, and financial reporting for freelancers and small businesses. Start free today." },
   ];
 };
@@ -19,7 +19,7 @@ export default function Index() {
         <div className="container mx-auto flex h-16 items-center justify-between px-6">
           <Link to="/" className="flex items-center gap-2">
             <FileText className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">Ledgerly</span>
+            <span className="text-xl font-bold">Figurely</span>
           </Link>
           <nav className="hidden items-center gap-6 md:flex">
             <a href="#features" className="text-sm font-medium text-neutral-700 transition-colors hover:text-primary">
@@ -279,7 +279,7 @@ export default function Index() {
               Host your invoices with zero friction today
             </h2>
             <p className="mb-10 text-lg text-neutral-600 sm:text-xl dark:text-neutral-400">
-              Join 27,000+ freelancers and businesses managing their finances with Ledgerly.
+              Join 27,000+ freelancers and businesses managing their finances with Figurely.
               99.9% uptime guaranteed. Available 24/7.
             </p>
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -308,7 +308,7 @@ export default function Index() {
       <footer id="contact" className="relative overflow-hidden border-t px-8 py-20 dark:border-neutral-800 dark:bg-black">
         {/* Large background text */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.03] dark:opacity-[0.05]">
-          <span className="text-[20rem] font-bold leading-none">Ledgerly</span>
+          <span className="text-[20rem] font-bold leading-none">Figurely</span>
         </div>
 
         <div className="container relative mx-auto">
@@ -408,7 +408,7 @@ export default function Index() {
 
           <div className="mt-16 border-t pt-8 text-center dark:border-neutral-800">
             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-              © {new Date().getFullYear()} Ledgerly. All rights reserved.
+              © {new Date().getFullYear()} Figurely. All rights reserved.
             </p>
           </div>
         </div>

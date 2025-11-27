@@ -32,7 +32,7 @@ import { SavedViewsMenu } from '~/components/saved-views-menu';
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Expenses - Ledgerly' },
+    { title: 'Expenses - Figurely' },
     { name: 'description', content: 'Manage your expenses' },
   ];
 };

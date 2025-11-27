@@ -30,8 +30,8 @@ import { AnimatedCounter } from '~/components/ui/animated-counter';
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Dashboard - Ledgerly' },
-    { name: 'description', content: 'Your Ledgerly dashboard' },
+    { title: 'Dashboard - Figurely' },
+    { name: 'description', content: 'Your Figurely dashboard' },
   ];
 };
 

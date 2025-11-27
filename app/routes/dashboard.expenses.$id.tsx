@@ -10,7 +10,7 @@ import { useState, useRef } from "react";
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
-    { title: `Expense ${data?.expense.description || ""} - Ledgerly` },
+    { title: `Expense ${data?.expense.description || ""} - Figurely` },
     { name: "description", content: "View expense details" },
   ];
 };

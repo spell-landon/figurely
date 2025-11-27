@@ -26,7 +26,7 @@ import { requireAuth } from '~/lib/auth.server';
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'New Line Item Template - Ledgerly' },
+    { title: 'New Line Item Template - Figurely' },
     { name: 'description', content: 'Create a new line item template' },
   ];
 };

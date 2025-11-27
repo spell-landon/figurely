@@ -35,7 +35,7 @@ import { useNavigationBlocker } from '~/hooks/useNavigationBlocker';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
-    { title: `Edit Invoice ${data?.invoice.invoice_number || ''} - Ledgerly` },
+    { title: `Edit Invoice ${data?.invoice.invoice_number || ''} - Figurely` },
     { name: 'description', content: 'Edit invoice' },
   ];
 };

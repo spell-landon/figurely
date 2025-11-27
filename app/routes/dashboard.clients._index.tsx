@@ -35,7 +35,7 @@ import { SavedViewsMenu } from '~/components/saved-views-menu';
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Clients - Ledgerly' },
+    { title: 'Clients - Figurely' },
     { name: 'description', content: 'Manage your clients' },
   ];
 };

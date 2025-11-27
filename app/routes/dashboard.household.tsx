@@ -14,7 +14,7 @@ import { formatCurrency } from "~/lib/utils";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Household Settings - Ledgerly" },
+    { title: "Household Settings - Figurely" },
     { name: "description", content: "Configure business use percentages for household expenses" },
   ];
 };

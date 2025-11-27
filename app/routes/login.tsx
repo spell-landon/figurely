@@ -8,8 +8,8 @@ import { getSession, signIn } from "~/lib/auth.server";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Login - Ledgerly" },
-    { name: "description", content: "Login to your Ledgerly account" },
+    { title: "Login - Figurely" },
+    { name: "description", content: "Login to your Figurely account" },
   ];
 };
 
@@ -53,7 +53,7 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Welcome to Ledgerly</CardTitle>
+          <CardTitle className="text-2xl font-bold">Welcome to Figurely</CardTitle>
           <CardDescription>
             Enter your email and password to login to your account
           </CardDescription>

@@ -47,7 +47,7 @@ import { SavedViewsMenu } from '~/components/saved-views-menu';
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Mileage Tracking - Ledgerly' },
+    { title: 'Mileage Tracking - Figurely' },
     { name: 'description', content: 'Track business miles for tax deductions' },
   ];
 };

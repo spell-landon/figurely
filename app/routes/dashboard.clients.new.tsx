@@ -22,7 +22,7 @@ import { requireAuth } from '~/lib/auth.server';
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'New Client - Ledgerly' },
+    { title: 'New Client - Figurely' },
     { name: 'description', content: 'Add a new client' },
   ];
 };

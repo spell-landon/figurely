@@ -14,7 +14,7 @@ import { requireAuth } from "~/lib/auth.server";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Settings - Ledgerly" },
+    { title: "Settings - Figurely" },
     { name: "description", content: "Manage your business settings" },
   ];
 };

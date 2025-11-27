@@ -35,7 +35,7 @@ import { formatCurrency } from '~/lib/utils';
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'New Invoice - Ledgerly' },
+    { title: 'New Invoice - Figurely' },
     { name: 'description', content: 'Create a new invoice' },
   ];
 };

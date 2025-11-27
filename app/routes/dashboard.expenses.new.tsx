@@ -17,7 +17,7 @@ import { formatDate } from "~/lib/utils";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "New Expense - Ledgerly" },
+    { title: "New Expense - Figurely" },
     { name: "description", content: "Add a new expense" },
   ];
 };

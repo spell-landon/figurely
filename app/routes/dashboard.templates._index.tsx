@@ -43,7 +43,7 @@ import { SavedViewsMenu } from '~/components/saved-views-menu';
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Line Item Templates - Ledgerly' },
+    { title: 'Line Item Templates - Figurely' },
     { name: 'description', content: 'Manage your line item templates' },
   ];
 };

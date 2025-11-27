@@ -33,7 +33,7 @@ import { SearchInput } from '~/components/search-input';
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Invoices - Ledgerly' },
+    { title: 'Invoices - Figurely' },
     { name: 'description', content: 'Manage your invoices' },
   ];
 };

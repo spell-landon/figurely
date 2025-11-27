@@ -1,4 +1,4 @@
-# 💼 Ledgerly
+# 💼 Figurely
 
 <div align="center">
 
@@ -102,8 +102,8 @@ Before you begin, ensure you have the following:
 ### 1️⃣ Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/ledgerly.git
-cd ledgerly
+git clone https://github.com/your-username/figurely.git
+cd figurely
 ```
 
 ### 2️⃣ Install Dependencies
@@ -171,7 +171,7 @@ npm run start
 ## 📦 Project Structure
 
 ```
-ledgerly/
+figurely/
 ├── app/
 │   ├── components/              # React components
 │   │   └── ui/                 # shadcn/ui components
@@ -362,7 +362,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## 📧 Support & Contact
 
-- **Issues**: [GitHub Issues](https://github.com/your-username/ledgerly/issues)
+- **Issues**: [GitHub Issues](https://github.com/your-username/figurely/issues)
 - **Questions**: Open a discussion on GitHub
 - **Email**: your-email@example.com
 

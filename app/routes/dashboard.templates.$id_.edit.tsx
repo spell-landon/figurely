@@ -26,7 +26,7 @@ import { requireAuth } from '~/lib/auth.server';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
-    { title: `Edit Template - Ledgerly` },
+    { title: `Edit Template - Figurely` },
     { name: 'description', content: 'Edit line item template' },
   ];
 };

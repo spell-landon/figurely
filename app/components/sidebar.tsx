@@ -205,7 +205,7 @@ export const Logo = () => {
           opacity: animate ? (open ? 1 : 0) : 1,
         }}
         className='overflow-hidden whitespace-nowrap font-serif font-bold text-xl text-black dark:text-white'>
-        Ledgerly
+        Figurely
       </motion.span>
     </Link>
   );
@@ -218,7 +218,7 @@ export const LogoIcon = () => {
       className='relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black'>
       <FileText className='h-6 w-6 flex-shrink-0 text-primary' />
       <span className='font-bold text-xl md:hidden dark:text-white font-serif'>
-        Ledgerly
+        Figurely
       </span>
     </Link>
   );

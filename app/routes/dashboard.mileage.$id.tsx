@@ -14,7 +14,7 @@ import { requireAuth } from "~/lib/auth.server";
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
-    { title: `Edit Mileage - Ledgerly` },
+    { title: `Edit Mileage - Figurely` },
     { name: "description", content: "Edit mileage record" },
   ];
 };

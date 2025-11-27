@@ -1,6 +1,6 @@
 # Supabase Database Setup Guide
 
-This document provides instructions for setting up the Supabase database for Ledgerly.
+This document provides instructions for setting up the Supabase database for Figurely.
 
 ## Prerequisites
 

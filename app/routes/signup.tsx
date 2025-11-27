@@ -8,8 +8,8 @@ import { getSession, signUp } from "~/lib/auth.server";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Sign Up - Ledgerly" },
-    { name: "description", content: "Create your Ledgerly account" },
+    { title: "Sign Up - Figurely" },
+    { name: "description", content: "Create your Figurely account" },
   ];
 };
 
@@ -71,7 +71,7 @@ export default function Signup() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
           <CardDescription>
-            Enter your information to create your Ledgerly account
+            Enter your information to create your Figurely account
           </CardDescription>
         </CardHeader>
         <Form method="post">

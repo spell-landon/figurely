@@ -11,7 +11,7 @@ import { AnimatedCounter } from "~/components/ui/animated-counter";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Tax Report - Ledgerly" },
+    { title: "Tax Report - Figurely" },
     { name: "description", content: "Comprehensive tax report for your business" },
   ];
 };

@@ -13,7 +13,7 @@ import { formatCurrency, formatDate } from '~/lib/utils';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
-    { title: `Invoice ${data?.invoice.invoice_number || ''} - Ledgerly` },
+    { title: `Invoice ${data?.invoice.invoice_number || ''} - Figurely` },
     { name: 'description', content: 'View invoice' },
   ];
 };
@@ -84,10 +84,10 @@ export default function PublicInvoice() {
                 Download PDF
               </Button>
             </Link>
-            <Link to='https://ledgerly.app' target='_blank'>
+            <Link to='https://figurely.co' target='_blank'>
               <Button variant='ghost' size='sm'>
                 <ExternalLink className='mr-2 h-4 w-4' />
-                Powered by Ledgerly
+                Powered by Figurely
               </Button>
             </Link>
           </div>
@@ -289,7 +289,7 @@ export default function PublicInvoice() {
 
         {/* Footer */}
         <div className='text-center text-sm text-muted-foreground'>
-          <p>This invoice was generated using Ledgerly</p>
+          <p>This invoice was generated using Figurely</p>
         </div>
       </div>
     </div>
