@@ -5,8 +5,8 @@ import {
   type MetaFunction,
   type ActionFunctionArgs,
 } from '@remix-run/node';
-import { Link, useLoaderData, Form, useNavigation } from '@remix-run/react';
-import { ArrowLeft, Edit, Mail, Phone, Globe, MapPin, FileText, Building2, Trash2 } from 'lucide-react';
+import { Link, useLoaderData, useFetcher } from '@remix-run/react';
+import { ArrowLeft, Edit, Mail, Phone, Globe, MapPin, FileText, Building2, Trash2, Archive } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
@@ -89,14 +89,54 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return redirect('/dashboard/clients', { headers });
   }
 
+  if (intent === 'archive') {
+    const { error } = await supabase
+      .from('clients')
+      .update({ status: 'archived' })
+      .eq('id', id)
+      .eq('user_id', session.user.id);
+
+    if (error) {
+      return json({ error: error.message }, { status: 400, headers });
+    }
+
+    return json({ success: true }, { headers });
+  }
+
+  if (intent === 'unarchive') {
+    const { error } = await supabase
+      .from('clients')
+      .update({ status: 'active' })
+      .eq('id', id)
+      .eq('user_id', session.user.id);
+
+    if (error) {
+      return json({ error: error.message }, { status: 400, headers });
+    }
+
+    return json({ success: true }, { headers });
+  }
+
   return json({ error: 'Invalid action' }, { status: 400, headers });
 }
 
 export default function ClientDetail() {
   const { client, invoicesCount } = useLoaderData<typeof loader>();
-  const navigation = useNavigation();
+  const fetcher = useFetcher();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const isDeleting = navigation.state === 'submitting' && navigation.formData?.get('intent') === 'delete';
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const isDeleting = fetcher.state === 'submitting' && fetcher.formData?.get('intent') === 'delete';
+  const isArchiving = fetcher.state === 'submitting' && (fetcher.formData?.get('intent') === 'archive' || fetcher.formData?.get('intent') === 'unarchive');
+  const isArchived = client.status === 'archived';
+
+  const handleDelete = () => {
+    fetcher.submit({ intent: 'delete' }, { method: 'post' });
+  };
+
+  const handleArchive = () => {
+    fetcher.submit({ intent: isArchived ? 'unarchive' : 'archive' }, { method: 'post' });
+    setShowArchiveDialog(false);
+  };
 
   return (
     <div className='container mx-auto space-y-4 p-4 md:space-y-6 md:p-6'>
@@ -126,6 +166,13 @@ export default function ClientDetail() {
             </Button>
           </Link>
           <Button
+            variant='outline'
+            onClick={() => setShowArchiveDialog(true)}
+            disabled={isArchiving}>
+            <Archive className='mr-2 h-4 w-4' />
+            {isArchiving ? (isArchived ? 'Unarchiving...' : 'Archiving...') : (isArchived ? 'Unarchive' : 'Archive')}
+          </Button>
+          <Button
             variant='destructive'
             onClick={() => setShowDeleteDialog(true)}
             disabled={isDeleting}>
@@ -136,25 +183,28 @@ export default function ClientDetail() {
       </div>
 
       <ConfirmDialog
-        isOpen={showDeleteDialog}
-        onClose={() => setShowDeleteDialog(false)}
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={handleDelete}
         title='Delete Client'
-        description={`Are you sure you want to delete "${client.name}"? This action cannot be undone.`}>
-        <Form method='post'>
-          <input type='hidden' name='intent' value='delete' />
-          <div className='flex justify-end gap-2'>
-            <Button
-              type='button'
-              variant='outline'
-              onClick={() => setShowDeleteDialog(false)}>
-              Cancel
-            </Button>
-            <Button type='submit' variant='destructive' disabled={isDeleting}>
-              {isDeleting ? 'Deleting...' : 'Delete Client'}
-            </Button>
-          </div>
-        </Form>
-      </ConfirmDialog>
+        description={`Are you sure you want to delete "${client.name}"? This action cannot be undone.`}
+        confirmText='Delete Client'
+        variant='danger'
+        isLoading={isDeleting}
+      />
+
+      <ConfirmDialog
+        open={showArchiveDialog}
+        onOpenChange={setShowArchiveDialog}
+        onConfirm={handleArchive}
+        title={isArchived ? 'Unarchive Client' : 'Archive Client'}
+        description={isArchived
+          ? `Are you sure you want to unarchive "${client.name}"? The client will become active again.`
+          : `Are you sure you want to archive "${client.name}"? You can unarchive them later if needed.`}
+        confirmText={isArchived ? 'Unarchive' : 'Archive'}
+        variant='warning'
+        isLoading={isArchiving}
+      />
 
       <div className='grid gap-4 md:gap-6 md:grid-cols-3'>
         {/* Main Information */}

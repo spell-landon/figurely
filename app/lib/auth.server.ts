@@ -104,6 +104,20 @@ export async function updatePassword(request: Request, newPassword: string) {
   return { success: true, headers };
 }
 
+export async function updateEmail(request: Request, newEmail: string) {
+  const { supabase, headers } = createSupabaseServerClient(request);
+
+  const { error } = await supabase.auth.updateUser({
+    email: newEmail,
+  });
+
+  if (error) {
+    return { error: error.message, headers };
+  }
+
+  return { success: true, headers };
+}
+
 export async function signInWithPhone(request: Request, phone: string) {
   const { supabase, headers } = createSupabaseServerClient(request);
 

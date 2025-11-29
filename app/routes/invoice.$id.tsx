@@ -21,25 +21,31 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const supabase = createSupabaseServiceClient();
   const { id } = params;
+  const url = new URL(request.url);
+  const token = url.searchParams.get('token');
 
   if (!id) {
     throw new Response('Invoice ID required', { status: 400 });
   }
 
+  if (!token) {
+    throw new Response('Access denied', { status: 403 });
+  }
+
   // Fetch invoice data using service role (bypasses RLS for public access)
-  // Only allow access if invoice has a share_token (publicly shared)
+  // Validate that the share_token matches the one in the URL
   const { data: invoice, error } = await supabase
     .from('invoices')
     .select('*')
     .eq('id', id)
-    .not('share_token', 'is', null)
+    .eq('share_token', token)
     .single();
 
   if (error || !invoice) {
     throw new Response('Invoice not found', { status: 404 });
   }
 
-  return json({ invoice });
+  return json({ invoice, token });
 }
 
 function getStatusBadge(status: string) {
@@ -58,7 +64,7 @@ function getStatusBadge(status: string) {
 }
 
 export default function PublicInvoice() {
-  const { invoice } = useLoaderData<typeof loader>();
+  const { invoice, token } = useLoaderData<typeof loader>();
   const lineItems = Array.isArray(invoice.line_items) ? invoice.line_items : [];
 
   return (
@@ -78,7 +84,7 @@ export default function PublicInvoice() {
 
           <div className='flex items-center gap-2'>
             <Link
-              to={`/invoice/${invoice.id}/pdf`}
+              to={`/invoice/${invoice.id}/pdf?token=${token}`}
               target='_blank'
               reloadDocument>
               <Button variant='outline' size='sm'>

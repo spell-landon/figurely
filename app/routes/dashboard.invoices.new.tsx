@@ -103,6 +103,9 @@ export async function action({ request }: ActionFunctionArgs) {
   const terms = formData.get('terms') as string;
   const customTerms = formData.get('customTerms') as string;
 
+  // Generate share token for public invoice sharing
+  const shareToken = crypto.randomUUID();
+
   const invoiceData = {
     user_id: session.user.id,
     invoice_name: formData.get('invoiceName') as string,
@@ -110,6 +113,7 @@ export async function action({ request }: ActionFunctionArgs) {
     date: formData.get('date') as string,
     terms: terms === 'custom' && customTerms ? customTerms : terms,
     status: 'draft',
+    share_token: shareToken,
 
     // From fields
     from_name: (formData.get('fromName') as string) || null,

@@ -1,7 +1,7 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
-import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
-import { Save, Building2, FileText, Mail } from "lucide-react";
-import { useRef } from "react";
+import { Form, useActionData, useLoaderData, useNavigation, useFetcher } from "@remix-run/react";
+import { Save, Building2, FileText, Mail, User, Key, AlertCircle, CheckCircle } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
@@ -10,7 +10,7 @@ import { Textarea } from "~/components/ui/textarea";
 import { FormSaveBar } from "~/components/ui/form-save-bar";
 import { useFormDirtyState } from "~/hooks/useFormDirtyState";
 import { useNavigationBlocker } from "~/hooks/useNavigationBlocker";
-import { requireAuth } from "~/lib/auth.server";
+import { requireAuth, updateEmail, updatePassword } from "~/lib/auth.server";
 
 export const meta: MetaFunction = () => {
   return [
@@ -38,7 +38,53 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   const { session, supabase, headers } = await requireAuth(request);
   const formData = await request.formData();
+  const intent = formData.get("intent") as string;
 
+  // Handle email change
+  if (intent === "update_email") {
+    const newEmail = formData.get("newEmail") as string;
+
+    if (!newEmail) {
+      return json({ emailError: "Email is required" }, { status: 400, headers });
+    }
+
+    const result = await updateEmail(request, newEmail);
+
+    if (result.error) {
+      return json({ emailError: result.error }, { status: 400, headers });
+    }
+
+    return json({ emailSuccess: "A confirmation email has been sent to your new email address. Please check your inbox to complete the change." }, { headers });
+  }
+
+  // Handle password change
+  if (intent === "update_password") {
+    const currentPassword = formData.get("currentPassword") as string;
+    const newPassword = formData.get("newPassword") as string;
+    const confirmPassword = formData.get("confirmPassword") as string;
+
+    if (!newPassword || !confirmPassword) {
+      return json({ passwordError: "All password fields are required" }, { status: 400, headers });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return json({ passwordError: "New passwords do not match" }, { status: 400, headers });
+    }
+
+    if (newPassword.length < 8) {
+      return json({ passwordError: "Password must be at least 8 characters" }, { status: 400, headers });
+    }
+
+    const result = await updatePassword(request, newPassword);
+
+    if (result.error) {
+      return json({ passwordError: result.error }, { status: 400, headers });
+    }
+
+    return json({ passwordSuccess: "Password updated successfully" }, { headers });
+  }
+
+  // Handle business settings (default intent)
   const settingsData = {
     user_id: session.user.id,
     business_name: formData.get("businessName") as string || null,
@@ -86,12 +132,34 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Settings() {
-  const { businessSettings } = useLoaderData<typeof loader>();
+  const { businessSettings, user } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
-  // Form state management
+  // Fetchers for account settings
+  const emailFetcher = useFetcher();
+  const passwordFetcher = useFetcher();
+
+  // Form refs for account settings
+  const emailFormRef = useRef<HTMLFormElement>(null);
+  const passwordFormRef = useRef<HTMLFormElement>(null);
+
+  // Clear password form after successful submit
+  useEffect(() => {
+    if (passwordFetcher.data?.passwordSuccess && passwordFormRef.current) {
+      passwordFormRef.current.reset();
+    }
+  }, [passwordFetcher.data]);
+
+  // Clear email form after successful submit
+  useEffect(() => {
+    if (emailFetcher.data?.emailSuccess && emailFormRef.current) {
+      emailFormRef.current.reset();
+    }
+  }, [emailFetcher.data]);
+
+  // Form state management for business settings
   const formRef = useRef<HTMLFormElement>(null);
   const { isDirty, resetDirty } = useFormDirtyState(formRef);
   const { blocker } = useNavigationBlocker(isDirty);
@@ -130,6 +198,126 @@ export default function Settings() {
             Manage your business information and preferences
           </p>
         </div>
+      </div>
+
+      {/* Account Settings Section */}
+      <div className="space-y-6">
+        {/* Account Information */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <User className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>Account Settings</CardTitle>
+            </div>
+            <CardDescription>
+              Manage your account email and password
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Current Email Display */}
+            <div className="space-y-2">
+              <FieldLabel htmlFor="currentEmail" label="Current Email" />
+              <Input
+                id="currentEmail"
+                value={user.email || ""}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+
+            {/* Change Email Form */}
+            <emailFetcher.Form method="post" ref={emailFormRef} className="space-y-4 rounded-lg border p-4">
+              <h4 className="font-medium">Change Email</h4>
+              <input type="hidden" name="intent" value="update_email" />
+
+              {emailFetcher.data?.emailError && (
+                <div className="flex items-center gap-2 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  {emailFetcher.data.emailError}
+                </div>
+              )}
+
+              {emailFetcher.data?.emailSuccess && (
+                <div className="flex items-center gap-2 rounded-md bg-green-50 p-3 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                  <CheckCircle className="h-4 w-4" />
+                  {emailFetcher.data.emailSuccess}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <FieldLabel htmlFor="newEmail" label="New Email Address" required />
+                <Input
+                  id="newEmail"
+                  name="newEmail"
+                  type="email"
+                  placeholder="newemail@example.com"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={emailFetcher.state === "submitting"}
+              >
+                {emailFetcher.state === "submitting" ? "Updating..." : "Update Email"}
+              </Button>
+            </emailFetcher.Form>
+
+            {/* Change Password Form */}
+            <passwordFetcher.Form method="post" ref={passwordFormRef} className="space-y-4 rounded-lg border p-4">
+              <div className="flex items-center gap-2">
+                <Key className="h-4 w-4 text-muted-foreground" />
+                <h4 className="font-medium">Change Password</h4>
+              </div>
+              <input type="hidden" name="intent" value="update_password" />
+
+              {passwordFetcher.data?.passwordError && (
+                <div className="flex items-center gap-2 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  {passwordFetcher.data.passwordError}
+                </div>
+              )}
+
+              {passwordFetcher.data?.passwordSuccess && (
+                <div className="flex items-center gap-2 rounded-md bg-green-50 p-3 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                  <CheckCircle className="h-4 w-4" />
+                  {passwordFetcher.data.passwordSuccess}
+                </div>
+              )}
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2 md:col-span-2">
+                  <FieldLabel htmlFor="newPassword" label="New Password" required />
+                  <Input
+                    id="newPassword"
+                    name="newPassword"
+                    type="password"
+                    placeholder="••••••••"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Must be at least 8 characters
+                  </p>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <FieldLabel htmlFor="confirmPassword" label="Confirm New Password" required />
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={passwordFetcher.state === "submitting"}
+              >
+                {passwordFetcher.state === "submitting" ? "Updating..." : "Update Password"}
+              </Button>
+            </passwordFetcher.Form>
+          </CardContent>
+        </Card>
       </div>
 
       <Form method="post" className="space-y-6" ref={formRef}>

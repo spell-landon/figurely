@@ -12,6 +12,7 @@ import {
   useNavigation,
   useActionData,
   useSubmit,
+  useFetcher,
 } from '@remix-run/react';
 import {
   ArrowLeft,
@@ -41,7 +42,7 @@ import { FieldLabel } from '~/components/ui/field-label';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { requireAuth } from '~/lib/auth.server';
 import { formatCurrency, formatDate } from '~/lib/utils';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { sendInvoiceEmail } from '~/lib/email.server';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
@@ -132,6 +133,24 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return redirect('/dashboard/invoices', { headers });
   }
 
+  // Generate share token (for invoices that don't have one)
+  if (intent === 'generate_share_token') {
+    const shareToken = crypto.randomUUID();
+
+    const { error } = await supabase
+      .from('invoices')
+      .update({ share_token: shareToken })
+      .eq('id', id)
+      .eq('user_id', session.user.id)
+      .is('share_token', null); // Only update if share_token is null
+
+    if (error) {
+      return json({ error: error.message }, { status: 400, headers });
+    }
+
+    return json({ success: true, shareToken }, { headers });
+  }
+
   // Send Email
   if (intent === 'send_email') {
     // First, get the invoice data
@@ -154,8 +173,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
 
     try {
-      // Generate the public invoice URL
-      const invoiceUrl = `${new URL(request.url).origin}/invoice/${id}`;
+      // Ensure the invoice has a share token for the public URL
+      let shareToken = invoice.share_token;
+      if (!shareToken) {
+        shareToken = crypto.randomUUID();
+        await supabase
+          .from('invoices')
+          .update({ share_token: shareToken })
+          .eq('id', id)
+          .eq('user_id', session.user.id);
+      }
+
+      // Generate the public invoice URL with token
+      const invoiceUrl = `${new URL(request.url).origin}/invoice/${id}?token=${shareToken}`;
 
       // Send the email
       await sendInvoiceEmail({
@@ -259,16 +289,40 @@ export default function InvoiceDetail() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const deleteFormRef = useRef<HTMLFormElement>(null);
   const emailFormRef = useRef<HTMLFormElement>(null);
+  const shareFetcher = useFetcher<{ success?: boolean; shareToken?: string }>();
+  const [pendingCopy, setPendingCopy] = useState(false);
 
   // Parse line items
   const lineItems = Array.isArray(invoice.line_items) ? invoice.line_items : [];
 
+  // Effect to copy link after share token is generated
+  useEffect(() => {
+    if (pendingCopy && shareFetcher.data?.shareToken) {
+      const url = `${window.location.origin}/invoice/${invoice.id}?token=${shareFetcher.data.shareToken}`;
+      navigator.clipboard.writeText(url).then(() => {
+        setLinkCopied(true);
+        setPendingCopy(false);
+        setTimeout(() => setLinkCopied(false), 2000);
+      });
+    }
+  }, [shareFetcher.data, pendingCopy, invoice.id]);
+
   // Copy shareable link to clipboard
   const copyShareableLink = async () => {
-    const url = `${window.location.origin}/invoice/${invoice.id}`;
-    await navigator.clipboard.writeText(url);
-    setLinkCopied(true);
-    setTimeout(() => setLinkCopied(false), 2000);
+    // If invoice already has a share token, copy immediately
+    if (invoice.share_token) {
+      const url = `${window.location.origin}/invoice/${invoice.id}?token=${invoice.share_token}`;
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } else {
+      // Generate a new share token, then copy when it's ready
+      setPendingCopy(true);
+      shareFetcher.submit(
+        { intent: 'generate_share_token' },
+        { method: 'post' }
+      );
+    }
   };
 
   return (
